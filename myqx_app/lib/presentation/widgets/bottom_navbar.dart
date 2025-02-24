@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:myqx_app/core/constants/corporative_colors.dart';
 
 class BottomNavBar extends StatelessWidget {
   final int currentIndex;
@@ -12,21 +13,41 @@ class BottomNavBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    
     return BottomNavigationBar(
+      backgroundColor: CorporativeColors.blackColor,
       currentIndex: currentIndex,
       onTap: onTap,
-      items: const [
+      showSelectedLabels: false,
+      showUnselectedLabels: false,
+      items: [
         BottomNavigationBarItem(
-          icon: Icon(Icons.star),
-          label: 'Star of the Day',
+          icon: Image.asset(
+            '../assets/images/Home.png',
+            width: 50,
+            height: 50,
+            color: currentIndex == 0 ? CorporativeColors.whiteColor : CorporativeColors.mainColor, 
+          ),
+          label: '',
+    
         ),
         BottomNavigationBarItem(
-          icon: Icon(Icons.people),
-          label: 'User Compatibility',
+          icon: Image.asset(
+            '../assets/images/Broadcast.png',
+            width: 50,
+            height: 50,
+            color: currentIndex == 1 ? CorporativeColors.whiteColor : CorporativeColors.mainColor,
+          ),
+          label: '',
         ),
         BottomNavigationBarItem(
-          icon: Icon(Icons.album),
-          label: 'Top Rated Albums',
+          icon: Image.asset(
+            '../assets/images/GraphIcon.png',
+            width: 70,
+            height: 70,
+            color: currentIndex == 2 ? CorporativeColors.whiteColor : CorporativeColors.mainColor,
+          ),
+          label: '',
         ),
       ],
     );
