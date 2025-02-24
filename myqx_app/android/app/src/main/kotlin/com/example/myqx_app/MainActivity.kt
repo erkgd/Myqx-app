@@ -1,4 +1,4 @@
-package com.example.hermes_app
+package com.example.myqx_app
 
 import io.flutter.embedding.android.FlutterActivity
 
