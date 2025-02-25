@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:myqx_app/core/constants/navbar_routes.dart';
-import 'package:myqx_app/presentation/screens/profile_screen.dart';
 import 'package:myqx_app/presentation/providers/navigation_provider.dart';
 import 'package:provider/provider.dart';
-import 'package:myqx_app/presentation/widgets/app_scaffold.dart';
+import 'package:myqx_app/presentation/widgets/general/app_scaffold.dart';
 
 
 

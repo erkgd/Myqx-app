@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:myqx_app/presentation/widgets/bottom_navbar.dart';
-import 'package:myqx_app/presentation/widgets/gradient_background.dart';
-import 'package:myqx_app/core/constants/navbar_routes.dart';
+import 'package:myqx_app/presentation/widgets/general/bottom_navbar.dart';
+import 'package:myqx_app/presentation/widgets/general/gradient_background.dart';
+import 'package:myqx_app/presentation/widgets/general/user_header.dart';
 
 class AppScaffold extends StatefulWidget {
   final List<Widget> pages;
@@ -37,6 +37,7 @@ class _AppScaffoldState extends State<AppScaffold> {
     return GradientBackground(
       child: Scaffold(
         backgroundColor: Colors.transparent,
+        appBar: UserHeader(imageUrl: ''),
         body: widget.pages[_currentIndex],
         bottomNavigationBar: BottomNavBar(
           currentIndex: _currentIndex,

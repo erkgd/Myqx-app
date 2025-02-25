@@ -13,9 +13,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.transparent,
-      appBar: AppBar(
-        title: const Text('Profile Screen'),
-      ),
       body: Center(
         child: Text('Profile Content'),
       ),
