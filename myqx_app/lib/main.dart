@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:myqx_app/core/constants/navbar_routes.dart';
 import 'package:myqx_app/presentation/screens/profile_screen.dart';
 import 'package:myqx_app/presentation/providers/navigation_provider.dart';
 import 'package:provider/provider.dart';
+import 'package:myqx_app/presentation/widgets/app_scaffold.dart';
 
 
 
@@ -36,7 +38,9 @@ class MyApp extends StatelessWidget {
           bodyMedium: TextStyle(fontSize: 12, fontWeight: FontWeight.normal),
         ),
       ),
-      home: const ProfileScreen(),
+      home: AppScaffold(
+         pages: NavbarRoutes.pages,
+      ),
     );
   }
 }

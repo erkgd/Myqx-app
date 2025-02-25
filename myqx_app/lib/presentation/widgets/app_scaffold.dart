@@ -1,17 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:myqx_app/presentation/widgets/bottom_navbar.dart';
 import 'package:myqx_app/presentation/widgets/gradient_background.dart';
+import 'package:myqx_app/core/constants/navbar_routes.dart';
 
 class AppScaffold extends StatefulWidget {
-  final Widget body;
-
-  /// Callback opcional para notificar un cambio en el índice.
-  final Function(int index)? onIndexChanged;
+  final List<Widget> pages;
+  final int initialIndex;
 
   const AppScaffold({
     super.key,
-    required this.body,
-    this.onIndexChanged,
+    required this.pages,
+    this.initialIndex = 0,
   });
 
   @override
@@ -19,16 +18,18 @@ class AppScaffold extends StatefulWidget {
 }
 
 class _AppScaffoldState extends State<AppScaffold> {
-  int _currentIndex = 1;
+  late int _currentIndex;
 
-  void _handleBottomNavTap(int index) {
+  @override
+  void initState() {
+    super.initState();
+    _currentIndex = widget.initialIndex;
+  }
+
+  void _onIndexChanged(int index) {
     setState(() {
       _currentIndex = index;
     });
-
-    if (widget.onIndexChanged != null) {
-      widget.onIndexChanged!(index);
-    }
   }
 
   @override
@@ -36,10 +37,10 @@ class _AppScaffoldState extends State<AppScaffold> {
     return GradientBackground(
       child: Scaffold(
         backgroundColor: Colors.transparent,
-        body: widget.body,
+        body: widget.pages[_currentIndex],
         bottomNavigationBar: BottomNavBar(
           currentIndex: _currentIndex,
-          onTap: _handleBottomNavTap,
+          onTap: _onIndexChanged,
         ),
       ),
     );

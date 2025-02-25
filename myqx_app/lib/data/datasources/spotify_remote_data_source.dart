@@ -1,6 +1,7 @@
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:myqx_app/core/constants/spotify_constants.dart';
+import 'package:flutter_web_auth/flutter_web_auth.dart';
 
 class SpotifyRemoteDataSource {
   Future<String> authenticate() async {

@@ -1,5 +1,5 @@
 import 'package:myqx_app/data/datasources/spotify_remote_data_source.dart';
-import 'package:myqx_app/data/models/spotify_models.dart';
+import 'package:myqx_app/data/models/spotify_user.dart';
 
 class SpotifyRepository {
   final SpotifyRemoteDataSource remoteDataSource;
