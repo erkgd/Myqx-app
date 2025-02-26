@@ -1,7 +1,7 @@
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:myqx_app/core/constants/spotify_constants.dart';
-import 'package:flutter_web_auth/flutter_web_auth.dart';
+import 'package:flutter_web_auth_2/flutter_web_auth_2.dart';
 
 class SpotifyRemoteDataSource {
   Future<String> authenticate() async {
@@ -12,7 +12,7 @@ class SpotifyRemoteDataSource {
       'redirect_uri': SpotifyConstants.redirectUri,
     });
 
-    final result = await FlutterWebAuth.authenticate(
+    final result = await FlutterWebAuth2.authenticate(
       url: url.toString(),
       callbackUrlScheme: 'http',
     );

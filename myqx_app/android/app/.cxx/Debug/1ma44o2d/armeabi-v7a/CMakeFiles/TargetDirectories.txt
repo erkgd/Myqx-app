@@ -1,0 +1,2 @@
+C:/Users/aleja/Desktop/BINFO/TFB/Myqx/Myqx-app/myqx_app/android/app/.cxx/Debug/1ma44o2d/armeabi-v7a/CMakeFiles/edit_cache.dir
+C:/Users/aleja/Desktop/BINFO/TFB/Myqx/Myqx-app/myqx_app/android/app/.cxx/Debug/1ma44o2d/armeabi-v7a/CMakeFiles/rebuild_cache.dir
