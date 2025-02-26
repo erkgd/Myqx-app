@@ -5,8 +5,9 @@ import 'package:flutter_svg/flutter_svg.dart';
 
 class SpotifyLink extends StatelessWidget {
   final Uri songUrl;
+  final double size;
 
-  const SpotifyLink({Key? key, required this.songUrl}) : super(key: key);
+  const SpotifyLink({Key? key, required this.songUrl, required this.size}) : super(key: key);
 
   Future<void> _launchURL() async {
     if (await canLaunchUrl(songUrl)) {
@@ -24,7 +25,7 @@ class SpotifyLink extends StatelessWidget {
     return GestureDetector(
       onTap: _launchURL,
       child: SizedBox(
-        width: 40,
+        width: size,
         child: FittedBox(
           fit: BoxFit.contain,
           child: SvgPicture.asset(

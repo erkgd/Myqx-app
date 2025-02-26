@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:myqx_app/core/constants/App_constants.dart';
 import 'package:myqx_app/core/constants/corporative_colors.dart';
 import 'package:myqx_app/presentation/widgets/broadcast/rated_music.dart';
+import 'package:myqx_app/presentation/widgets/general/divisor.dart';
 
 class BroadcastScreen extends StatelessWidget {
   const BroadcastScreen({super.key});
@@ -26,6 +27,7 @@ class BroadcastScreen extends StatelessWidget {
             '"Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vestibulum scelerisque ligula in ligula semper, non suscipit orci viverra."',
         rating: 4,
       ),
+      
     ];
 
     List<Widget> feedWithDividers = [];
@@ -40,14 +42,7 @@ class BroadcastScreen extends StatelessWidget {
       // Si no es el último, añadimos un Divider con solo margen vertical
       if (i != feedItems.length - 1) {
         feedWithDividers.add(
-          Container(
-            margin: const EdgeInsets.symmetric(vertical: AppConstants.verticalMargins),
-            // Sin margen horizontal para que el Divider toque los límites
-            child: const Divider(
-              color: CorporativeColors.mainColor,
-              thickness: 1.0,
-            ),
-          ),
+          Divisor()
         );
       }
     }

@@ -23,75 +23,91 @@ class RatedMusic extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MusicContainer(
-      child: Padding(
-        padding: const EdgeInsets.all(8.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+      child:Row(
+        children: [
+          Column(
               children: [
-                Expanded(
-                  flex: 4,
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(8.0),
-                    child: AspectRatio(
-                      aspectRatio: 1.0, // Mantiene el aspect ratio cuadrado
-                      child: Image.network(
-                        imageUrl,
-                        fit: BoxFit.cover,
-                      ),
-                    ),
-                  ),
+                //-------------------------PORTADA
+                Image.network(
+                  imageUrl,
+                  fit: BoxFit.fitHeight,
+                  scale: 7,
                 ),
-                const SizedBox(width: 8.0),
-                Expanded(
-                  flex: 6,
-                  child: Text(
-                    review,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 12.0,
+                Column(
+                  children: [
+                    Row(
+                      children: [
+                        Column(
+                          children: [
+                            //-------------------------Artista
+                            Text(
+                              artist,
+                              textAlign: TextAlign.left,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 15.0,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            //-------------------------MUSICA
+                            Text(
+                              musicname,
+                              textAlign: TextAlign.left,
+                              style: const TextStyle(
+                                color: Colors.white70,
+                                fontSize: 12.0,
+                              ),
+                              overflow: TextOverflow.ellipsis, // Trunca el texto si es demasiado largo
+                            ),
+                            
+                          ],
+                        ),
+                        //-------------------------SPOTIFY
+                        SpotifyLink(
+                          songUrl: Uri.parse(
+                            'https://open.spotify.com/intl-es/track/1VJALWHEqQhRIzxoHKZR0b?si=f089954986424567',
+                          ),
+                          size: 30,
+                        ),
+                        //-------------------------ADD PLAYLIST
+                        Container(
+                          width: 30,
+                          height: 30,
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        
+                      ]
                     ),
-                  ),
+                   
+                  ],
                 ),
               ],
-            ),
-            const SizedBox(height: 8.0),
-            Text(
-              artist,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 18.0,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 8.0),
-            Row(
+          ),
+          Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              mainAxisSize: MainAxisSize.max,
               children: [
-                Expanded(
-                  child: Text(
-                    musicname,
-                    style: const TextStyle(
-                      color: Colors.white70,
-                      fontSize: 14.0,
-                    ),
-                  ),
-                ),
-                SpotifyLink(
-                  songUrl: Uri.parse(
-                    'https://open.spotify.com/intl-es/track/1VJALWHEqQhRIzxoHKZR0b?si=f089954986424567',
-                  ),
-                ),
-                const SizedBox(width: 8.0),
                 Container(
-                  width: 40,
-                  height: 40,
+                  width: 30,
+                  height: 30,
                   decoration: BoxDecoration(
                     color: Colors.white,
                     shape: BoxShape.circle,
                   ),
                 ),
-                const SizedBox(width: 8.0),
+                SizedBox(height: 5),
+                Text(
+                  review,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 10,
+                  ),
+                  textAlign: TextAlign.justify,
+                ),
+                
                 RatingBarIndicator(
                   rating: rating,
                   itemBuilder: (context, index) => const Icon(
@@ -99,15 +115,14 @@ class RatedMusic extends StatelessWidget {
                     color: CorporativeColors.whiteColor,
                   ),
                   itemCount: 5,
-                  itemSize: 20.0,
+                  itemSize: 12.0,
                   unratedColor: CorporativeColors.darkColor,
                   direction: Axis.horizontal,
                 ),
               ],
-            ),
-          ],
-        ),
-      ),
+          ),
+        ],
+      )
     );
   }
 }
