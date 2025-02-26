@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:myqx_app/core/constants/App_constants.dart';
 import 'package:myqx_app/presentation/widgets/general/bottom_navbar.dart';
 import 'package:myqx_app/presentation/widgets/general/gradient_background.dart';
 import 'package:myqx_app/presentation/widgets/general/user_header.dart';
@@ -10,7 +11,7 @@ class AppScaffold extends StatefulWidget {
   const AppScaffold({
     super.key,
     required this.pages,
-    this.initialIndex = 0,
+    this.initialIndex = 1,
   });
 
   @override

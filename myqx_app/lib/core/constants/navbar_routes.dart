@@ -1,6 +1,6 @@
 import 'package:myqx_app/presentation/screens/profile_screen.dart';
 import 'package:myqx_app/presentation/screens/broadcast_screen.dart';
-import 'package:myqx_app/presentation/widgets/spotify_widgets.dart';
+import 'package:myqx_app/presentation/widgets/spotify/spotify_widgets.dart';
 import 'package:flutter/material.dart';
 
 class NavbarRoutes{

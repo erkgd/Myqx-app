@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:myqx_app/core/constants/App_constants.dart';
+import 'package:myqx_app/core/constants/corporative_colors.dart';
 import 'package:myqx_app/presentation/widgets/broadcast/rated_music.dart';
 
 class BroadcastScreen extends StatelessWidget {
@@ -6,26 +8,58 @@ class BroadcastScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    List<Widget> feedItems = [];
+    // Lista hardcodeada de instancias de RatedMusic
+    List<Widget> feedItems = [
+      RatedMusic(
+        imageUrl: 'https://f4.bcbits.com/img/a2767682510_10.jpg',
+        artist: 'People Like Us',
+        musicname: 'Chicken Legga',
+        review:
+            '"Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vestibulum scelerisque ligula in ligula semper, non suscipit orci viverra."',
+        rating: 4,
+      ),
+      RatedMusic(
+        imageUrl: 'https://f4.bcbits.com/img/a2767682510_10.jpg',
+        artist: 'People Like Us',
+        musicname: 'Chicken Legga',
+        review:
+            '"Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vestibulum scelerisque ligula in ligula semper, non suscipit orci viverra."',
+        rating: 4,
+      ),
+    ];
+
+    List<Widget> feedWithDividers = [];
+    for (int i = 0; i < feedItems.length; i++) {
+      // Cada RatedMusic se pone con un margen de 10 en todo lado
+      feedWithDividers.add(
+        Container(
+          margin: const EdgeInsets.all(10.0),
+          child: feedItems[i],
+        ),
+      );
+      // Si no es el último, añadimos un Divider con solo margen vertical
+      if (i != feedItems.length - 1) {
+        feedWithDividers.add(
+          Container(
+            margin: const EdgeInsets.symmetric(vertical: AppConstants.verticalMargins),
+            // Sin margen horizontal para que el Divider toque los límites
+            child: const Divider(
+              color: CorporativeColors.mainColor,
+              thickness: 1.0,
+            ),
+          ),
+        );
+      }
+    }
 
     return Scaffold(
       backgroundColor: Colors.transparent,
-      body: Column(
-        children: [
-          Expanded(
-            child: ListView(
-              children: feedItems,
-            ),
-          ),
-          
-          const RatedMusic(
-            imageUrl: 'https://f4.bcbits.com/img/a2767682510_10.jpg',
-            artist: 'People Like Us',
-            musicname: 'Chicken Leggs',
-            review: '"Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vestibulum scelerisque ligula in ligula semper, non suscipit orci viverra."',
-            rating: 4,
-          ),
-        ],
+      // Eliminamos el Padding general para que el Divider llegue a los bordes
+      body: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: feedWithDividers,
+        ),
       ),
     );
   }
