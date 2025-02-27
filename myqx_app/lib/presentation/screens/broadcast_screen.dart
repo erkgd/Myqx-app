@@ -3,6 +3,7 @@ import 'package:myqx_app/core/constants/app_constants.dart';
 import 'package:myqx_app/core/constants/corporative_colors.dart';
 import 'package:myqx_app/presentation/widgets/broadcast/rated_music.dart';
 import 'package:myqx_app/presentation/widgets/general/divisor.dart';
+import 'package:myqx_app/presentation/widgets/general/user_header.dart';
 
 class BroadcastScreen extends StatelessWidget {
   const BroadcastScreen({super.key});
@@ -59,6 +60,7 @@ class BroadcastScreen extends StatelessWidget {
     }
 
     return Scaffold(
+      appBar: UserHeader(imageUrl: '', showCircle: true),
       backgroundColor: Colors.transparent,
       // Eliminamos el Padding general para que el Divider llegue a los bordes
       body: SingleChildScrollView(

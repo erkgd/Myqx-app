@@ -37,7 +37,6 @@ class _AppScaffoldState extends State<AppScaffold> {
     return GradientBackground(
       child: Scaffold(
         backgroundColor: Colors.transparent,
-        appBar: UserHeader(imageUrl: ''),
         body: widget.pages[_currentIndex],
         bottomNavigationBar: BottomNavBar(
           currentIndex: _currentIndex,

@@ -12,7 +12,7 @@ class UserHeader extends StatelessWidget implements PreferredSizeWidget {
     super.key, 
     required this.imageUrl,
     this.username = 'user', // Valor por defecto
-    this.showCircle = true, // Por defecto no se muestra
+    this.showCircle = false, // Por defecto no se muestra
   });
 
   @override
