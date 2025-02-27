@@ -63,8 +63,11 @@ class RatedMusic extends StatelessWidget {
                       
                       const SizedBox(height: 8),
                       
-                      // Review (debajo del usuario)
-                      Review(reviewText: review),
+                      // Review con padding añadido
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 10.0),
+                        child: Review(reviewText: review, fontSize: 11),
+                      ),
                     ],
                   ),
                 ),
@@ -76,28 +79,32 @@ class RatedMusic extends StatelessWidget {
             // Segunda sección: Metadata, iconos Spotify y rating
             Row(
               children: [
-                // Metadata (artista y nombre)
+                // Metadata (artista y nombre) con los iconos de Spotify integrados
                 Expanded(
                   flex: 3,
-                  child: MusicMetadata(
-                    artist: artist, 
-                    musicname: musicname
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: MusicMetadata(
+                          artist: artist, 
+                          musicname: musicname
+                        ),
+                      ),
+                      // ICONOS DE SPOTIFY PEGADOS A LOS METADATOS (sin SizedBox)
+                      SpotifyLink(
+                        songUrl: Uri.parse('https://open.spotify.com/intl-es/track/0zn0GmUvU9wkqcj8slROu9?si=9166f09e829b4ccd'), 
+                        size: 25
+                      ),
+                      const SizedBox(width: 2),
+                      AddToPlaylist(songId: 'songId', size: 25),
+                    ],
                   ),
                 ),
                 
-                // ICONOS DE SPOTIFY MÁS CERCA DE LOS METADATOS
-                const SizedBox(width: 2), // Reducido de 4 a 2
-                SpotifyLink(
-                  songUrl: Uri.parse('https://open.spotify.com/intl-es/track/0zn0GmUvU9wkqcj8slROu9?si=9166f09e829b4ccd'), 
-                  size: 20
-                ),
-                const SizedBox(width: 2), // Reducido de 4 a 2
-                AddToPlaylist(songId: 'songId', size: 20),
-                
-                const SizedBox(width: 8), // Este espacio se mantiene igual
+                const SizedBox(width: 40), // Este espacio se mantiene igual
                 
                 // Rating - SE MANTIENE DONDE ESTABA
-                Rating(rating: rating, itemSize: 16),
+                Rating(rating: rating, itemSize: 14),
               ],
             ),
           ],

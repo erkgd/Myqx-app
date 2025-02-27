@@ -95,7 +95,7 @@ class _AddToPlaylistState extends State<AddToPlaylist> {
         width: widget.size,
         height: widget.size,
         decoration: const BoxDecoration(
-          color: Colors.white,
+          color: Colors.transparent,
           shape: BoxShape.circle,
         ),
         child: _isLoading 
@@ -105,7 +105,7 @@ class _AddToPlaylistState extends State<AddToPlaylist> {
                 height: 15,
                 child: CircularProgressIndicator(
                   strokeWidth: 2,
-                  color: Colors.black,
+                  color: Colors.white,
                 ),
               ),
             )
@@ -114,9 +114,13 @@ class _AddToPlaylistState extends State<AddToPlaylist> {
                 _isLiked 
                   ? 'assets/images/spotify-icon-liked.svg'
                   : 'assets/images/spotify-like-icon.svg',
-                width: widget.size * 0.6,
-                height: widget.size * 0.6,
-                color: Colors.black,
+                width: widget.size,
+                height: widget.size,
+                fit: BoxFit.contain,
+                color: Colors.white,
+                alignment: Alignment.center,
+                allowDrawingOutsideViewBox: true,
+                clipBehavior: Clip.none,
               ),
             ),
       ),

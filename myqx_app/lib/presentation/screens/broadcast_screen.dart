@@ -29,6 +29,15 @@ class BroadcastScreen extends StatelessWidget {
         rating: 4,
         user: 'erkgd',
       ),
+      RatedMusic(
+        imageUrl: 'https://f4.bcbits.com/img/a2767682510_10.jpg',
+        artist: 'People Like Us',
+        musicname: 'Chicken Legga',
+        review:
+            '"Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vestibulum scelerisque ligula in ligula semper, non suscipit orci viverra."',
+        rating: 4,
+        user: 'erkgd',
+      ),
       
     ];
 
@@ -37,7 +46,7 @@ class BroadcastScreen extends StatelessWidget {
       // Cada RatedMusic se pone con un margen de 10 en todo lado
       feedWithDividers.add(
         Container(
-          margin: const EdgeInsets.all(10.0),
+          margin: const EdgeInsets.all(2.0),
           child: feedItems[i],
         ),
       );
