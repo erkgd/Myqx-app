@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:myqx_app/core/constants/App_constants.dart';
+import 'package:myqx_app/core/constants/app_constants.dart';
 import 'package:myqx_app/core/constants/corporative_colors.dart';
 import 'package:myqx_app/presentation/widgets/broadcast/rated_music.dart';
 import 'package:myqx_app/presentation/widgets/general/divisor.dart';
@@ -18,6 +18,7 @@ class BroadcastScreen extends StatelessWidget {
         review:
             '"Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vestibulum scelerisque ligula in ligula semper, non suscipit orci viverra."',
         rating: 4,
+        user: 'erkgd',
       ),
       RatedMusic(
         imageUrl: 'https://f4.bcbits.com/img/a2767682510_10.jpg',
@@ -26,6 +27,7 @@ class BroadcastScreen extends StatelessWidget {
         review:
             '"Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vestibulum scelerisque ligula in ligula semper, non suscipit orci viverra."',
         rating: 4,
+        user: 'erkgd',
       ),
       
     ];

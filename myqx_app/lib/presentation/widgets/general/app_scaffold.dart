@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:myqx_app/core/constants/App_constants.dart';
 import 'package:myqx_app/presentation/widgets/general/bottom_navbar.dart';
 import 'package:myqx_app/presentation/widgets/general/gradient_background.dart';
 import 'package:myqx_app/presentation/widgets/general/user_header.dart';

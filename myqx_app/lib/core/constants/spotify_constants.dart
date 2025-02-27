@@ -3,4 +3,8 @@ class SpotifyConstants {
   static const String clientSecret = 'c22f589410df471f8021778395f6c8b5';
   static const String redirectUri = 'http://localhost:3000/callback';
   static const List<String> scopes = ['user-read-private', 'user-read-email'];
+  static const String authUrl = 'https://accounts.spotify.com/authorize';
+  static const String tokenUrl = 'https://accounts.spotify.com/api/token';
+  static const String apiUrl = 'https://api.spotify.com/v1';
+
 }
