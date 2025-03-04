@@ -52,6 +52,8 @@ class _AlbumTrackCardState extends State<AlbumTrackCard> {
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
     final isSmallScreen = screenWidth < 360;
+    final animationDuration = const Duration(milliseconds: 300);
+    final animationCurve = Curves.easeInOut;
     
     return MusicContainer(
       borderColor: CorporativeColors.mainColor,
@@ -60,16 +62,16 @@ class _AlbumTrackCardState extends State<AlbumTrackCard> {
         children: [
           // Contenido principal
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 0),
+            padding: const EdgeInsets.symmetric(horizontal: 2.0, vertical: 0),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                // 1. Botón de Play (quitamos Spotify como se pidió)
+                // 1. Botón de Play
                 IconButton(
                   icon: Icon(
                     Icons.play_circle_filled,
                     color: CorporativeColors.whiteColor,
-                    size: isSmallScreen ? 18 : 20,
+                    size: isSmallScreen ? 18 : 24,
                   ),
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(),
@@ -80,11 +82,10 @@ class _AlbumTrackCardState extends State<AlbumTrackCard> {
                 
                 const SizedBox(width: 8),
                 
-                // 2. Número y nombre de la canción (ahora con más espacio)
+                // 2. Número y nombre de la canción
                 Expanded(
                   child: Row(
                     children: [
-                      // Número de track
                       SizedBox(
                         width: isSmallScreen ? 18 : 20,
                         child: Text(
@@ -97,7 +98,6 @@ class _AlbumTrackCardState extends State<AlbumTrackCard> {
                         ),
                       ),
                       
-                      // Nombre de la canción
                       Expanded(
                         child: Text(
                           widget.trackName,
@@ -113,33 +113,45 @@ class _AlbumTrackCardState extends State<AlbumTrackCard> {
                   ),
                 ),
                 
-                // 3. Rating con estrellas - con espacio adicional
+                // Espacio para el rating que será posicionado en el Stack
                 const SizedBox(width: 4),
-                Rating(
-                  rating: _currentRating,
-                  itemSize: isSmallScreen ? 15 : 17,
-                  onRatingUpdate: (value) {
-                    setState(() {
-                      _currentRating = value;
-                      _ratingChanged = true;
-                    });
-                    
-                    // Cancelar el timer anterior si existe
-                    _debounceTimer?.cancel();
-                    
-                    // Mostrar el panel después de 2 segundos
-                    _debounceTimer = Timer(const Duration(milliseconds: 2000), () {
-                      setState(() {
-                        _expanded = true;
-                      });
-                    });
-                    
-                    if (widget.onRatingChanged != null) {
-                      widget.onRatingChanged!(value);
-                    }
-                  },
-                ),
               ],
+            ),
+          ),
+          
+          // Rating animado - ahora es parte del Stack y se mueve con el panel
+          Positioned(
+            right: _expanded ? 70.0 : 10.0, // Se mueve junto con el panel
+            top: 0,
+            bottom: 0,
+            child: AnimatedContainer(
+              duration: animationDuration,
+              curve: animationCurve,
+              alignment: Alignment.center,
+              child: Rating(
+                rating: _currentRating,
+                itemSize: isSmallScreen ? 15 : 17,
+                onRatingUpdate: (value) {
+                  setState(() {
+                    _currentRating = value;
+                    _ratingChanged = true;
+                  });
+                  
+                  // Cancelar el timer anterior si existe
+                  _debounceTimer?.cancel();
+                  
+                  // Mostrar el panel después de un tiempo
+                  _debounceTimer = Timer(const Duration(milliseconds: 2000), () {
+                    setState(() {
+                      _expanded = true;
+                    });
+                  });
+                  
+                  if (widget.onRatingChanged != null) {
+                    widget.onRatingChanged!(value);
+                  }
+                },
+              ),
             ),
           ),
           
@@ -149,9 +161,9 @@ class _AlbumTrackCardState extends State<AlbumTrackCard> {
             top: 0,
             bottom: 0,
             child: AnimatedContainer(
-              duration: const Duration(milliseconds: 300),
-              curve: Curves.easeInOut,
-              width: _expanded ? 60.0 : 0.0, // Ancho aún más reducido para evitar overflow
+              duration: animationDuration, // Misma duración para ambas animaciones
+              curve: animationCurve, // Misma curva para ambas animaciones
+              width: _expanded ? 60.0 : 0.0,
               decoration: BoxDecoration(
                 color: CorporativeColors.darkColor.withOpacity(0.9),
                 borderRadius: const BorderRadius.only(
@@ -164,7 +176,7 @@ class _AlbumTrackCardState extends State<AlbumTrackCard> {
                 ),
               ),
               child: _expanded 
-                ? Center( // Centrar el botón para mejor apariencia
+                ? Center(
                     child: IconButton(
                       icon: const Icon(
                         Icons.check_circle,

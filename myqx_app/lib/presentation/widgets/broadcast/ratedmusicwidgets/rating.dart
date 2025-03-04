@@ -34,21 +34,30 @@ class Rating extends StatelessWidget {
     } 
     
     // Si es rateable Y onRatingUpdate NO es null, mostrar el rating interactivo
-    return RatingBar.builder(
-      initialRating: rating,
-      minRating: 1,
-      direction: Axis.horizontal,
-      allowHalfRating: true,
-      itemCount: 5,
-      itemSize: itemSize,
-      unratedColor: CorporativeColors.darkColor,
-      itemPadding: const EdgeInsets.symmetric(horizontal: 2.0),
-      itemBuilder: (context, _) => const Icon(
-        Icons.star,
-        color: CorporativeColors.whiteColor,
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 2.0),
+      decoration: BoxDecoration(
+        color: Colors.black.withOpacity(0.7),
+        borderRadius: BorderRadius.circular(itemSize / 2),
       ),
-      onRatingUpdate: onRatingUpdate!,
-      glow: false, // Desactivar el efecto "glow" para un aspecto más limpio
+      child: RatingBar.builder(
+        initialRating: rating,
+        minRating: 1,
+        direction: Axis.horizontal,
+        allowHalfRating: true,
+        itemCount: 5,
+        itemSize: itemSize,
+        unratedColor: CorporativeColors.darkColor,
+        itemPadding: const EdgeInsets.symmetric(horizontal: 2.0),
+        itemBuilder: (context, _) => const Icon(
+          Icons.star,
+          color: CorporativeColors.whiteColor,
+        ),
+        onRatingUpdate: onRatingUpdate!,
+        glow: false,
+        updateOnDrag: true,
+      ),
     );
   }
+
 }
