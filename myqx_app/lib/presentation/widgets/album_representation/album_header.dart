@@ -25,11 +25,8 @@ class AlbumHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Determinar el tamaño disponible
     final screenWidth = MediaQuery.of(context).size.width;
     final isSmallScreen = screenWidth < 360;
-    
-    // Ajustar el tamaño de la portada según el tamaño de pantalla
     final coverSize = isSmallScreen ? 120.0 : 140.0;
 
     return MusicContainer(
@@ -38,79 +35,73 @@ class AlbumHeader extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Portada del álbum (lado izquierdo)
+            // Portada del álbum
             MusicCover(
               imageUrl: imageUrl,
               size: coverSize,
             ),
             
-            const SizedBox(width: 12),
+            const SizedBox(width: 15),
             
-            // Contenido textual y botón (lado derecho)
+            // Área de información y controles
             Expanded(
-              child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  minHeight: coverSize, // Asegura que la altura sea al menos la de la portada
-                ),
+              child: SizedBox(
+                height: coverSize,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    // Sección superior con información del álbum
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Título del álbum
-                        Text(
-                          albumTitle,
-                          style: TextStyle(
-                            fontSize: isSmallScreen ? 16 : 18,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        
-                        const SizedBox(height: 6),
-                        
-                        // Artista
-                        Text(
-                          artist,
-                          style: TextStyle(
-                            fontSize: isSmallScreen ? 14 : 15,
-                            color: Colors.white70,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        
-                        const SizedBox(height: 4),
-                        
-                        // Año de lanzamiento
-                        Text(
-                          '$releaseYear',
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: CorporativeColors.mainColor,
-                          ),
-                        ),
-                        
-                        const SizedBox(height: 8),
-                        
-                        // Rating
-                        Rating(rating: rating, itemSize: isSmallScreen ? 14 : 16),
-                      ],
+                    // 1. Artista
+                    Text(
+                      artist,
+                      style: TextStyle(
+                        fontSize: isSmallScreen ? 16 : 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                     
-                    // Botón de Spotify - ahora sin cálculos arriesgados
+                   
+                    // 2. Título del álbum
+                    Text(
+                      albumTitle,
+                      style: TextStyle(
+                        fontSize: isSmallScreen ? 10 : 13,
+                        color: Colors.white,
+                        
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    
+                    const SizedBox(height: 2), // Espacio reducido
+                    
+                    // 3. Año (más pequeño y discreto)
+                    Text(
+                      '$releaseYear',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: CorporativeColors.mainColor,
+                      ),
+                    ),
+                    
+                    SizedBox(height: 5), // Empuja el botón hacia abajo
+
+                    // 4. Botón de Spotify (más compacto y alineado a la izquierda)
+                    OpenSpotifyButton(
+                      spotifyUrl: spotifyUrl,
+                      height: isSmallScreen ? 22 : 24,
+                      text: isSmallScreen ? 'Open' : 'Open in Spotify',
+                      // No definimos width para que use su tamaño intrínseco
+                    ),
+                    
+                    // 5. Rating (alineado a la derecha)
                     Padding(
-                      padding: const EdgeInsets.only(top: 8.0),
-                      child: OpenSpotifyButton(
-                        spotifyUrl: spotifyUrl,
-                        // Sin width específico, dejamos que se ajuste al padre
-                        height: 34,
-                        text: isSmallScreen ? 'Open' : 'Open in Spotify',
+                      padding: const EdgeInsets.only(top: 25, left: 80),
+                      child:Rating(
+                        rating: rating, 
+                        itemSize: isSmallScreen ? 16 : 22,
                       ),
                     ),
                   ],

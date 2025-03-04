@@ -38,7 +38,6 @@ class OpenSpotifyButton extends StatelessWidget {
       onTap: _launchSpotify,
       child: Container(
         height: height,
-        // Usa un ancho que se adapte al contenido si width es null
         width: width,
         constraints: const BoxConstraints(minWidth: 40),
         decoration: BoxDecoration(
@@ -49,23 +48,25 @@ class OpenSpotifyButton extends StatelessWidget {
           ),
           color: Colors.transparent,
         ),
+        // Añadido padding horizontal dentro del botón
+        padding: const EdgeInsets.symmetric(horizontal: 10.0),
         child: Row(
-          mainAxisSize: MainAxisSize.min, // Esto es crucial para evitar overflow
+          mainAxisSize: MainAxisSize.min,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             // Icono de Spotify
-            SpotifyLink(songUrl: Uri.parse(spotifyUrl), size: 20),
+            SpotifyLink(songUrl: Uri.parse(spotifyUrl), size: 16), // Reducido tamaño
             
             if (text.isNotEmpty) ...[
-              const SizedBox(width: 4), // Espaciado reducido
+              const SizedBox(width: 6), // Espaciado entre icono y texto
               
-              // Texto con elipsis para evitar overflow
+              // Texto con tamaño reducido
               Flexible(
                 child: Text(
                   text,
                   style: const TextStyle(
                     color: Colors.white,
-                    fontSize: 14,
+                    fontSize: 12, // Reducido de 14 a 12
                     fontWeight: FontWeight.w500,
                   ),
                   overflow: TextOverflow.ellipsis,
@@ -73,9 +74,6 @@ class OpenSpotifyButton extends StatelessWidget {
                 ),
               ),
             ],
-            
-            // Padding a la derecha para equilibrar visualmente
-            const SizedBox(width: 4),
           ],
         ),
       ),

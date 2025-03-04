@@ -60,7 +60,7 @@ class _AlbumTrackCardState extends State<AlbumTrackCard> {
         children: [
           // Contenido principal
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 2.0),
+            padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 0),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
@@ -117,7 +117,7 @@ class _AlbumTrackCardState extends State<AlbumTrackCard> {
                 const SizedBox(width: 4),
                 Rating(
                   rating: _currentRating,
-                  itemSize: isSmallScreen ? 10 : 12,
+                  itemSize: isSmallScreen ? 15 : 17,
                   onRatingUpdate: (value) {
                     setState(() {
                       _currentRating = value;
