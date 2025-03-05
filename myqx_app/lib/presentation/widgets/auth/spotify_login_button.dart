@@ -31,7 +31,7 @@ class SpotifyLoginButton extends StatelessWidget {
                   }
                 },
           style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFF1DB954),  // Verde de Spotify
+            backgroundColor: CorporativeColors.spotifyColor,
             foregroundColor: Colors.white,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             shape: RoundedRectangleBorder(

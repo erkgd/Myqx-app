@@ -1,14 +1,21 @@
 import 'dart:convert';
 import 'dart:math';
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart'; 
 import 'package:flutter_web_auth_2/flutter_web_auth_2.dart';
 import 'package:http/http.dart' as http;
+import 'package:myqx_app/core/constants/spotify_constants.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart'; 
+import 'dart:io' show Platform;
+import 'package:flutter/services.dart' show SystemNavigator;
+
 
 class SpotifyAuthService {
   // Reemplaza estos valores con tu configuración de Spotify Developer
-  static const String _clientId = 'YOUR_CLIENT_ID';
-  static const String _redirectUri = 'myqx://callback';
+  static const String _clientId = SpotifyConstants.clientId;
+  static const String _redirectUri = SpotifyConstants.redirectUri;
   
   // Scope necesario para acceder a datos del usuario y de música
   static const String _scope = 'user-read-email user-read-private user-top-read user-library-read';
@@ -19,9 +26,9 @@ class SpotifyAuthService {
   static const String _expiresAtKey = 'spotify_expires_at';
   
   // URLs de Spotify
-  static const String _authUrl = 'https://accounts.spotify.com/authorize';
-  static const String _tokenUrl = 'https://accounts.spotify.com/api/token';
-  static const String _apiUrl = 'https://api.spotify.com/v1';
+  static const String _authUrl = SpotifyConstants.authUrl;
+  static const String _tokenUrl = SpotifyConstants.tokenUrl;
+  static const String _apiUrl = SpotifyConstants.apiUrl;
   
   // Estado de autenticación
   ValueNotifier<bool> isAuthenticated = ValueNotifier<bool>(false);
@@ -70,10 +77,28 @@ class SpotifyAuthService {
     return List.generate(length, (index) => chars[random.nextInt(chars.length)]).join();
   }
   
-  // Iniciar sesión con Spotify
+  Future<bool> _isSpotifyInstalled() async {
+    final spotifyUri = Uri.parse('spotify:');
+    
+    try {
+      // Verificamos si podemos lanzar la URI de Spotify
+      return await canLaunchUrl(spotifyUri);
+    } catch (e) {
+      debugPrint('Error checking if Spotify is installed: $e');
+      return false;
+    }
+  }
+  
+  // Iniciar sesión con Spotify con verificación previa
   Future<bool> login() async {
     try {
       isLoading.value = true;
+      
+      // Verificar si Spotify está instalado
+      final hasSpotify = await _isSpotifyInstalled();
+      if (!hasSpotify) {
+        debugPrint('Spotify app is not installed. Continuing with web authentication.');
+      }
       
       final state = _generateRandomString(16);
       final queryParameters = {
@@ -87,33 +112,66 @@ class SpotifyAuthService {
       
       final authorizeUrl = Uri.parse('$_authUrl?${Uri(queryParameters: queryParameters).query}');
       
-      // Iniciar flujo de autenticación - Actualizado para flutter_web_auth_2
-      final result = await FlutterWebAuth2.authenticate(
-        url: authorizeUrl.toString(),
-        callbackUrlScheme: 'myqx',
+      debugPrint('[DEBUG] Iniciando autenticación OAuth con Spotify');
+      
+      final options = const FlutterWebAuth2Options(
+        preferEphemeral: true,
       );
       
-      // Extraer código de autorización
-      final uri = Uri.parse(result);
-      final receivedState = uri.queryParameters['state'];
-      if (receivedState != state) {
-        throw Exception('Estado inválido, posible ataque CSRF');
+      // Simplificado: usa directamente FlutterWebAuth2 sin Completer adicional
+      try {
+        String result = await FlutterWebAuth2.authenticate(
+          url: authorizeUrl.toString(),
+          callbackUrlScheme: 'myqx',
+          options: options,
+        );
+        
+        debugPrint('[DEBUG] Autenticación completada, procesando resultado');
+        
+        // Procesar el resultado
+        final uri = Uri.parse(result);
+        
+        // Verificaciones de seguridad
+        if (uri.queryParameters.containsKey('error')) {
+          final error = uri.queryParameters['error'];
+          debugPrint('[DEBUG] Error en parámetros: $error');
+          return false;
+        }
+        
+        final receivedState = uri.queryParameters['state'];
+        if (receivedState != state) {
+          debugPrint('[DEBUG] Estado inválido, posible CSRF');
+          return false;
+        }
+        
+        final code = uri.queryParameters['code'];
+        if (code == null) {
+          debugPrint('[DEBUG] No se recibió código de autorización');
+          return false;
+        }
+        
+        // Obtener token
+        debugPrint('[DEBUG] Obteniendo token de acceso');
+        await _getAccessToken(code);
+        isAuthenticated.value = true;
+        
+        debugPrint('[DEBUG] Login completado exitosamente');
+        return true;
+        
+      } on PlatformException catch (e) {
+        // Manejar específicamente cancelación
+        if (e.code == 'CANCELED') {
+          debugPrint('[DEBUG] Usuario canceló la autenticación');
+          return false;
+        }
+        debugPrint('[DEBUG] Error de plataforma: ${e.message}');
+        return false;
+      } catch (e) {
+        debugPrint('[DEBUG] Error general en autenticación: $e');
+        return false;
       }
-      
-      final code = uri.queryParameters['code'];
-      if (code == null) {
-        throw Exception('No se recibió código de autorización');
-      }
-      
-      // Obtener token de acceso
-      await _getAccessToken(code);
-      isAuthenticated.value = true;
+    } finally {
       isLoading.value = false;
-      return true;
-    } catch (e) {
-      isLoading.value = false;
-      debugPrint('Error en la autenticación de Spotify: $e');
-      return false;
     }
   }
   
@@ -126,6 +184,7 @@ class SpotifyAuthService {
       },
       body: {
         'client_id': _clientId,
+        'client_secret': SpotifyConstants.clientSecret, // Añadido client_secret
         'grant_type': 'authorization_code',
         'code': code,
         'redirect_uri': _redirectUri,
@@ -140,6 +199,7 @@ class SpotifyAuthService {
         data['expires_in'],
       );
     } else {
+      debugPrint('Error de Spotify: ${response.body}');
       throw Exception('Error obteniendo token de acceso: ${response.body}');
     }
   }
@@ -153,6 +213,7 @@ class SpotifyAuthService {
       },
       body: {
         'client_id': _clientId,
+        'client_secret': SpotifyConstants.clientSecret, // Añadido client_secret
         'grant_type': 'refresh_token',
         'refresh_token': refreshToken,
       },
@@ -182,15 +243,46 @@ class SpotifyAuthService {
     ]);
   }
   
-  // Cerrar sesión
+  // Cerrar sesión de manera segura
   Future<void> logout() async {
-    final prefs = await SharedPreferences.getInstance();
-    await Future.wait([
-      prefs.remove(_accessTokenKey),
-      prefs.remove(_refreshTokenKey),
-      prefs.remove(_expiresAtKey),
-    ]);
-    isAuthenticated.value = false;
+    try {
+      isLoading.value = true;
+      
+      final prefs = await SharedPreferences.getInstance();
+      await Future.wait([
+        prefs.remove(_accessTokenKey),
+        prefs.remove(_refreshTokenKey),
+        prefs.remove(_expiresAtKey),
+      ]);
+      
+      // Opcional: Si quieres revocar el token en Spotify para mayor seguridad
+      // pero no es estrictamente necesario
+      final token = await getCurrentToken();
+      if (token != null) {
+        try {
+          await http.post(
+            Uri.parse('https://accounts.spotify.com/api/token/revoke'),
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded',
+              'Authorization': 'Basic ' + base64Encode(utf8.encode('$_clientId:${SpotifyConstants.clientSecret}')),
+            },
+            body: {
+              'token': token,
+              'token_type_hint': 'access_token',
+            },
+          ).timeout(const Duration(seconds: 5));
+        } catch (e) {
+          // Ignoramos errores aquí, no afecta al logout local
+          debugPrint('Error al revocar token: $e');
+        }
+      }
+    } catch (e) {
+      debugPrint('Error durante logout: $e');
+    } finally {
+      // Asegurar que el estado de autenticación se actualice
+      isAuthenticated.value = false;
+      isLoading.value = false;
+    }
   }
   
   // Obtener token actual
@@ -199,49 +291,11 @@ class SpotifyAuthService {
     if (!isAuthenticated.value) {
       return null;
     }
-    
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString(_accessTokenKey);
   }
   
-  // Hacer peticiones a la API de Spotify
-  Future<Map<String, dynamic>> getSpotifyData(String endpoint) async {
-    final token = await getCurrentToken();
-    if (token == null) {
-      throw Exception('No hay sesión activa');
-    }
-    
-    final response = await http.get(
-      Uri.parse('$_apiUrl/$endpoint'),
-      headers: {
-        'Authorization': 'Bearer $token',
-      },
-    );
-    
-    if (response.statusCode == 200) {
-      return json.decode(response.body);
-    } else if (response.statusCode == 401) {
-      // Token expirado, intentar refrescar
-      final prefs = await SharedPreferences.getInstance();
-      final refreshToken = prefs.getString(_refreshTokenKey);
-      if (refreshToken != null) {
-        await _refreshAccessToken(refreshToken);
-        return getSpotifyData(endpoint); // Reintentar con nuevo token
-      }
-      throw Exception('Sesión expirada');
-    } else {
-      throw Exception('Error en petición a Spotify: ${response.body}');
-    }
-  }
   
-  // Obtener información del perfil
-  Future<Map<String, dynamic>> getUserProfile() async {
-    return getSpotifyData('me');
-  }
-  
-  // Obtener los álbumes favoritos
-  Future<List<dynamic>> getTopAlbums() async {
-    final data = await getSpotifyData('me/top/tracks?limit=5');
-    return data['items'] ?? [];
-  }
 }
+
+
