@@ -1,15 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:myqx_app/core/constants/navbar_routes.dart';
+import 'package:myqx_app/core/services/spotify_auth_service.dart';
 import 'package:myqx_app/presentation/providers/navigation_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:myqx_app/presentation/widgets/general/app_scaffold.dart';
-
-
+import 'package:myqx_app/presentation/screens/login_screen.dart';
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+  
   runApp(
-    ChangeNotifierProvider(
-      create: (_) => NavigationProvider(),
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => NavigationProvider()),
+        // Otros providers que puedas necesitar
+      ],
       child: const MyApp(),
     ),
   );
@@ -20,6 +25,9 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Instancia del servicio de autenticación de Spotify
+    final authService = SpotifyAuthService();
+    
     return MaterialApp(
       title: 'Myqx',
       debugShowCheckedModeBanner: false,
@@ -37,8 +45,21 @@ class MyApp extends StatelessWidget {
           bodyMedium: TextStyle(fontSize: 12, fontWeight: FontWeight.normal),
         ),
       ),
-      home: AppScaffold(
-         pages: NavbarRoutes.pages,
+      // Verificar el estado de autenticación y mostrar la pantalla correspondiente
+      home: ValueListenableBuilder<bool>(
+        valueListenable: authService.isAuthenticated,
+        builder: (context, isAuthenticated, child) {
+          // Si el usuario está autenticado, mostrar la aplicación principal
+          if (isAuthenticated) {
+            return AppScaffold(
+              pages: NavbarRoutes.pages,
+            );
+          } 
+          // Si no está autenticado, mostrar la pantalla de login
+          else {
+            return const LoginScreen();
+          }
+        },
       ),
     );
   }

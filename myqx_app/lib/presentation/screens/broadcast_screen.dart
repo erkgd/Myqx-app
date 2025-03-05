@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:myqx_app/core/constants/app_constants.dart';
 import 'package:myqx_app/core/constants/corporative_colors.dart';
-import 'package:myqx_app/presentation/widgets/broadcast/rated_music.dart';
+import 'package:myqx_app/presentation/widgets/broadcast/rated_music_element.dart';
 import 'package:myqx_app/presentation/widgets/general/divisor.dart';
 import 'package:myqx_app/presentation/widgets/general/user_header.dart';
 
