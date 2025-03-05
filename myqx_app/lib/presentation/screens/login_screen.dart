@@ -4,8 +4,39 @@ import 'package:myqx_app/core/services/spotify_auth_service.dart';
 import 'package:myqx_app/presentation/screens/profile_screen.dart';
 import 'package:myqx_app/presentation/widgets/auth/spotify_login_button.dart';
 
-class LoginScreen extends StatelessWidget {
+// Convierte a StatefulWidget
+class LoginScreen extends StatefulWidget {
   const LoginScreen({Key? key}) : super(key: key);
+
+  @override
+  State<LoginScreen> createState() => _LoginScreenState();
+}
+
+// Crea la clase State e implementa WidgetsBindingObserver
+class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+  
+  // Opcional: Implementa didChangeAppLifecycleState para detectar cuando la app va a 
+  // segundo plano y vuelve al primer plano, lo cual es útil para manejar el flujo de OAuth
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    // Puedes usar esto para manejar el regreso desde el navegador
+    if (state == AppLifecycleState.resumed) {
+      debugPrint('[DEBUG] App regresó al primer plano');
+      // Aquí podrías verificar si hay autenticación pendiente
+    }
+  }
 
   @override
   Widget build(BuildContext context) {

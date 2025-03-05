@@ -91,89 +91,77 @@ class SpotifyAuthService {
   
   // Iniciar sesión con Spotify con verificación previa
   Future<bool> login() async {
-    try {
-      isLoading.value = true;
-      
-      // Verificar si Spotify está instalado
-      final hasSpotify = await _isSpotifyInstalled();
-      if (!hasSpotify) {
-        debugPrint('Spotify app is not installed. Continuing with web authentication.');
-      }
-      
-      final state = _generateRandomString(16);
-      final queryParameters = {
-        'client_id': _clientId,
-        'response_type': 'code',
-        'redirect_uri': _redirectUri,
-        'state': state,
-        'scope': _scope,
-        'show_dialog': 'true'
-      };
-      
-      final authorizeUrl = Uri.parse('$_authUrl?${Uri(queryParameters: queryParameters).query}');
-      
-      debugPrint('[DEBUG] Iniciando autenticación OAuth con Spotify');
-      
-      final options = const FlutterWebAuth2Options(
-        preferEphemeral: true,
-      );
-      
-      // Simplificado: usa directamente FlutterWebAuth2 sin Completer adicional
-      try {
-        String result = await FlutterWebAuth2.authenticate(
-          url: authorizeUrl.toString(),
-          callbackUrlScheme: 'myqx',
-          options: options,
-        );
-        
-        debugPrint('[DEBUG] Autenticación completada, procesando resultado');
-        
-        // Procesar el resultado
-        final uri = Uri.parse(result);
-        
-        // Verificaciones de seguridad
-        if (uri.queryParameters.containsKey('error')) {
-          final error = uri.queryParameters['error'];
-          debugPrint('[DEBUG] Error en parámetros: $error');
-          return false;
-        }
-        
-        final receivedState = uri.queryParameters['state'];
-        if (receivedState != state) {
-          debugPrint('[DEBUG] Estado inválido, posible CSRF');
-          return false;
-        }
-        
-        final code = uri.queryParameters['code'];
-        if (code == null) {
-          debugPrint('[DEBUG] No se recibió código de autorización');
-          return false;
-        }
-        
-        // Obtener token
-        debugPrint('[DEBUG] Obteniendo token de acceso');
-        await _getAccessToken(code);
-        isAuthenticated.value = true;
-        
-        debugPrint('[DEBUG] Login completado exitosamente');
-        return true;
-        
-      } on PlatformException catch (e) {
-        // Manejar específicamente cancelación
-        if (e.code == 'CANCELED') {
-          debugPrint('[DEBUG] Usuario canceló la autenticación');
-          return false;
-        }
-        debugPrint('[DEBUG] Error de plataforma: ${e.message}');
-        return false;
-      } catch (e) {
-        debugPrint('[DEBUG] Error general en autenticación: $e');
-        return false;
-      }
-    } finally {
-      isLoading.value = false;
+  try {
+    isLoading.value = true;
+    debugPrint('[DEBUG] Iniciando proceso de login con Spotify...');
+
+    // Verificar si Spotify está instalado (opcional)
+    final hasSpotify = await _isSpotifyInstalled();
+    if (!hasSpotify) {
+      debugPrint('[DEBUG] Spotify no está instalado. Usando autenticación web.');
     }
+
+    // Generar estado para seguridad contra ataques CSRF
+    final state = _generateRandomString(16);
+    final queryParameters = {
+      'client_id': _clientId,
+      'response_type': 'code',
+      'redirect_uri': _redirectUri,
+      'state': state,
+      'scope': _scope,
+      'show_dialog': 'true',
+    };
+
+    final authorizeUrl = Uri.parse('$_authUrl?${Uri(queryParameters: queryParameters).query}');
+    debugPrint('[DEBUG] URL de autenticación generada: $authorizeUrl');
+
+    String result;
+
+    try {
+      // Iniciar la autenticación web
+      result = await FlutterWebAuth2.authenticate(
+        url: authorizeUrl.toString(),
+        callbackUrlScheme: 'myqx', // Esquema de callback
+      );
+      debugPrint('[DEBUG] Autenticación completada, procesando respuesta...');
+    } on PlatformException catch (e) {
+      if (e.code == 'CANCELED') {
+        debugPrint('[DEBUG] Usuario canceló el proceso de autenticación.');
+      } else {
+        debugPrint('[DEBUG] Error en autenticación: ${e.message}');
+      }
+      return false;
+    }
+
+    // Procesar la respuesta de autenticación
+    final uri = Uri.parse(result);
+    final receivedState = uri.queryParameters['state'];
+    if (receivedState != state) {
+      debugPrint('[DEBUG] Estado inválido, posible ataque CSRF');
+      return false;
+    }
+
+    // Obtener el código de autorización
+    final code = uri.queryParameters['code'];
+    if (code == null) {
+      debugPrint('[DEBUG] No se recibió código de autorización');
+      return false;
+    }
+
+    // Obtener el token de acceso usando el código de autorización
+    debugPrint('[DEBUG] Código de autorización recibido. Obteniendo token...');
+    await _getAccessToken(code);
+    isAuthenticated.value = true;
+
+    debugPrint('[DEBUG] Login exitoso');
+    return true;
+  } catch (e) {
+    debugPrint('[DEBUG] Error inesperado en el proceso de login: $e');
+    return false;
+  } finally {
+    isLoading.value = false;
   }
+}
   
   // Obtener token de acceso con código de autorización
   Future<void> _getAccessToken(String code) async {
