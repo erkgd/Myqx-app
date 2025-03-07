@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:myqx_app/core/constants/app_constants.dart';
-import 'package:myqx_app/core/constants/corporative_colors.dart';
 import 'package:myqx_app/presentation/widgets/broadcast/rated_music_element.dart';
 import 'package:myqx_app/presentation/widgets/general/divisor.dart';
 import 'package:myqx_app/presentation/widgets/general/user_header.dart';
@@ -15,7 +13,7 @@ class BroadcastScreen extends StatelessWidget {
       RatedMusic(
         imageUrl: 'https://f4.bcbits.com/img/a2767682510_10.jpg',
         artist: 'People Like Us',
-        musicname: 'Chicken Legga',
+        musicname: 'Chicken Leggs',
         review:
             '"Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vestibulum scelerisque ligula in ligula semper, non suscipit orci viverra."',
         rating: 4,
@@ -24,7 +22,7 @@ class BroadcastScreen extends StatelessWidget {
       RatedMusic(
         imageUrl: 'https://f4.bcbits.com/img/a2767682510_10.jpg',
         artist: 'People Like Us',
-        musicname: 'Chicken Legga',
+        musicname: 'Chicken Leggs',
         review:
             '"Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vestibulum scelerisque ligula in ligula semper, non suscipit orci viverra."',
         rating: 4,
@@ -33,7 +31,7 @@ class BroadcastScreen extends StatelessWidget {
       RatedMusic(
         imageUrl: 'https://f4.bcbits.com/img/a2767682510_10.jpg',
         artist: 'People Like Us',
-        musicname: 'Chicken Legga',
+        musicname: 'Chicken Leggs',
         review:
             '"Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vestibulum scelerisque ligula in ligula semper, non suscipit orci viverra."',
         rating: 4,

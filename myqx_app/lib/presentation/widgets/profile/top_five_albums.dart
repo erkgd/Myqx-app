@@ -1,22 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:myqx_app/core/constants/corporative_colors.dart';
 import 'package:myqx_app/presentation/widgets/general/music_container.dart';
-
-class SpotifyAlbum {
-  final String id;
-  final String name;
-  final String coverUrl;
-  final String artistName;
-  final String spotifyUrl;
-
-  const SpotifyAlbum({
-    required this.id,
-    required this.name,
-    required this.coverUrl,
-    required this.artistName,
-    required this.spotifyUrl,
-  });
-}
+import 'package:myqx_app/data/models/spotify_models.dart';
 
 class TopFiveAlbums extends StatelessWidget {
   final List<SpotifyAlbum> albums;
@@ -41,15 +26,6 @@ class TopFiveAlbums extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             // Título
-            Text(
-              title,
-              style: const TextStyle(
-                fontSize: 14,
-                color: CorporativeColors.mainColor,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-            
             const SizedBox(height: 12),
             
             // Albums en horizontal

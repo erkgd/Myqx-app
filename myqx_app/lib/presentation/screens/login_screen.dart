@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:myqx_app/core/constants/corporative_colors.dart';
-import 'package:myqx_app/core/services/spotify_auth_service.dart';
-import 'package:myqx_app/presentation/screens/profile_screen.dart';
 import 'package:myqx_app/presentation/widgets/auth/spotify_login_button.dart';
-
+import 'package:myqx_app/core/constants/navbar_routes.dart';
+import 'package:myqx_app/presentation/widgets/general/app_scaffold.dart';
 // Convierte a StatefulWidget
 class LoginScreen extends StatefulWidget {
   const LoginScreen({Key? key}) : super(key: key);
@@ -88,8 +87,22 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
                     // Botón de inicio de sesión con Spotify
                     SpotifyLoginButton(
                       onLoginSuccess: () {
+                        debugPrint('[DEBUG] Login success callback triggered - navigating to AppScaffold');
                         Navigator.of(context).pushReplacement(
-                          MaterialPageRoute(builder: (_) => const ProfileScreen()),
+                          PageRouteBuilder(
+                            pageBuilder: (context, animation, secondaryAnimation) => 
+                              AppScaffold(
+                                pages: NavbarRoutes.pages,
+                                initialIndex: 0, // This should be the profile tab index
+                              ),
+                            transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                              return FadeTransition(
+                                opacity: animation,
+                                child: child,
+                              );
+                            },
+                            transitionDuration: const Duration(milliseconds: 500),
+                          ),
                         );
                       },
                       onLoginFailed: () {

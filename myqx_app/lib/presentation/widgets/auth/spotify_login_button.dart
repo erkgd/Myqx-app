@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:myqx_app/core/constants/corporative_colors.dart';
 import 'package:myqx_app/core/services/spotify_auth_service.dart';
+import 'package:myqx_app/presentation/widgets/general/app_scaffold.dart';
+import 'package:myqx_app/core/constants/navbar_routes.dart';
 
 class SpotifyLoginButton extends StatelessWidget {
   final Function? onLoginSuccess;
@@ -23,11 +25,48 @@ class SpotifyLoginButton extends StatelessWidget {
           onPressed: isLoading 
               ? null 
               : () async {
-                  final success = await authService.login();
-                  if (success) {
-                    onLoginSuccess?.call();
-                  } else {
-                    onLoginFailed?.call();
+                  try {
+                    final success = await authService.login();
+
+                    if (success) {
+                      debugPrint('[DEBUG] Login successful - navigating to profile');
+                      
+                      // Longer delay to ensure state updates
+                      await Future.delayed(const Duration(milliseconds: 300));
+                      
+                      // Use a more direct approach to navigation
+                      if (context.mounted) {
+                        if (onLoginSuccess != null) {
+                          onLoginSuccess!();
+                        } else {
+                          // Force navigation regardless of ValueListenable state
+                          debugPrint('[DEBUG] Using direct navigation to AppScaffold');
+                          
+                          // Clear navigation stack completely and add new page
+                          Navigator.of(context).pushAndRemoveUntil(
+                            MaterialPageRoute(
+                              builder: (context) => AppScaffold(pages: NavbarRoutes.pages),
+                            ),
+                            (route) => false, // Remove all previous routes
+                          );
+                        }
+                      }
+                    } else {
+                      debugPrint('[DEBUG] Login failed');
+                      if (onLoginFailed != null) {
+                        onLoginFailed!();
+                      }
+                    }
+                  } catch (e) {
+                    debugPrint('[ERROR] During login/navigation: $e');
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Error: $e'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                    }
                   }
                 },
           style: ElevatedButton.styleFrom(

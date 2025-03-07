@@ -8,8 +8,7 @@ import 'package:http/http.dart' as http;
 import 'package:myqx_app/core/constants/spotify_constants.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart'; 
-import 'dart:io' show Platform;
-import 'package:flutter/services.dart' show SystemNavigator;
+
 
 
 class SpotifyAuthService {
@@ -245,7 +244,7 @@ class SpotifyAuthService {
       
       // Opcional: Si quieres revocar el token en Spotify para mayor seguridad
       // pero no es estrictamente necesario
-      final token = await getCurrentToken();
+      final token = await getAccessToken();
       if (token != null) {
         try {
           await http.post(
@@ -274,7 +273,7 @@ class SpotifyAuthService {
   }
   
   // Obtener token actual
-  Future<String?> getCurrentToken() async {
+  Future<String?> getAccessToken() async {
     await _checkAuth();
     if (!isAuthenticated.value) {
       return null;
