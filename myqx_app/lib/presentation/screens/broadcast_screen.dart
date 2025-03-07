@@ -58,7 +58,7 @@ class BroadcastScreen extends StatelessWidget {
     }
 
     return Scaffold(
-      appBar: UserHeader(imageUrl: '', showCircle: true),
+      appBar: UserHeader(showCircle: true),
       backgroundColor: Colors.transparent,
       // Eliminamos el Padding general para que el Divider llegue a los bordes
       body: SingleChildScrollView(

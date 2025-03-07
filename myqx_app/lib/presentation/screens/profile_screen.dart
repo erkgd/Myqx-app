@@ -29,19 +29,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
   
   Future<void> _loadProfileData() async {
-    setState(() {
-      _isLoading = true;
-    });
-    
+    if (mounted) {  
+      setState(() {
+        _isLoading = true;
+      });
+    }
     try {
       await _profileService.initialize();
     } catch (e) {
-      // Error handling will be managed by the service
       debugPrint("[ERROR] Failed to load profile data: $e");
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
   

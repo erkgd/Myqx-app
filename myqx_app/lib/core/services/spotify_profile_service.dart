@@ -4,9 +4,14 @@ import 'package:http/http.dart' as http;
 import 'package:myqx_app/core/constants/spotify_constants.dart';
 import 'package:myqx_app/core/services/spotify_auth_service.dart';
 import 'package:myqx_app/data/models/spotify_models.dart';
-
+import 'package:shared_preferences/shared_preferences.dart';
 
 class SpotifyProfileService with ChangeNotifier {
+  // Implementación del patrón singleton
+  static final SpotifyProfileService _instance = SpotifyProfileService._internal();
+  factory SpotifyProfileService() => _instance;
+  SpotifyProfileService._internal();
+  
   final SpotifyAuthService _authService = SpotifyAuthService();
   
   SpotifyUser? _currentUser;
@@ -26,15 +31,31 @@ class SpotifyProfileService with ChangeNotifier {
   String? get errorMessage => _errorMessage;
   
   // Initialize the service and load data
-  Future<void> initialize() async {
+  Future<void> initialize({bool forceRefresh = false}) async {
     _setLoading(true);
     try {
+      // Si no estamos forzando actualización, intentamos cargar datos guardados
+      if (!forceRefresh) {
+        final dataLoaded = await _loadDataFromPreferences();
+        
+        // Si tenemos datos y no necesitamos actualizar, terminamos
+        if (dataLoaded && !await _needsRefresh()) {
+          _setLoading(false);
+          return;
+        }
+      }
+      
+      // Si llegamos aquí, necesitamos cargar datos de la API
       await _loadUserProfile();
       await Future.wait([
         _loadTopTracks(),
         _loadTopAlbums(),
       ]);
       _pickStarOfTheDay();
+      
+      // Guardar datos en SharedPreferences
+      await _saveDataToPreferences();
+      
       _errorMessage = null;
     } catch (e) {
       _errorMessage = "Failed to load profile data: ${e.toString()}";
@@ -42,6 +63,135 @@ class SpotifyProfileService with ChangeNotifier {
     } finally {
       _setLoading(false);
     }
+  }
+  
+  // Verificar si los datos necesitan actualizarse
+  Future<bool> _needsRefresh() async {
+    final prefs = await SharedPreferences.getInstance();
+    final lastUpdate = prefs.getInt('spotify_last_update') ?? 0;
+    
+    // Actualizar datos si tienen más de 2 horas
+    final twoHoursInMillis = 2 * 60 * 60 * 1000;
+    return DateTime.now().millisecondsSinceEpoch - lastUpdate > twoHoursInMillis;
+  }
+  
+  // Cargar datos desde SharedPreferences
+  Future<bool> _loadDataFromPreferences() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      
+      // Cargar usuario
+      final userJson = prefs.getString('spotify_user');
+      if (userJson != null) {
+        final userData = json.decode(userJson);
+        _currentUser = SpotifyUser.fromJson(userData);
+      }
+      
+      // Cargar tracks
+      final tracksJson = prefs.getString('spotify_top_tracks');
+      if (tracksJson != null) {
+        final List<dynamic> tracksData = json.decode(tracksJson);
+        _topTracks = tracksData.map((track) => SpotifyTrack.fromJson(track)).toList();
+      }
+      
+      // Cargar álbumes
+      final albumsJson = prefs.getString('spotify_top_albums');
+      if (albumsJson != null) {
+        final List<dynamic> albumsData = json.decode(albumsJson);
+        _topAlbums = albumsData.map((album) => SpotifyAlbum.fromJson(album)).toList();
+      }
+      
+      // Cargar estrella del día
+      final starJson = prefs.getString('spotify_star_track');
+      if (starJson != null) {
+        _starOfTheDay = SpotifyTrack.fromJson(json.decode(starJson));
+      }
+      
+      // Verificar si se cargaron todos los datos necesarios
+      final dataComplete = _currentUser != null && 
+                          _topTracks.isNotEmpty && 
+                          _topAlbums.isNotEmpty &&
+                          _starOfTheDay != null;
+      
+      if (dataComplete) {
+        notifyListeners();
+        return true;
+      }
+      return false;
+    } catch (e) {
+      debugPrint("[ERROR] Error loading data from SharedPreferences: $e");
+      return false;
+    }
+  }
+  
+  // Guardar datos en SharedPreferences
+  Future<void> _saveDataToPreferences() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      
+      // Guardar usuario
+      if (_currentUser != null) {
+        await prefs.setString('spotify_user', json.encode(_currentUserToJson()));
+      }
+      
+      // Guardar tracks
+      if (_topTracks.isNotEmpty) {
+        await prefs.setString('spotify_top_tracks', 
+          json.encode(_topTracks.map((track) => _trackToJson(track)).toList()));
+      }
+      
+      // Guardar álbumes
+      if (_topAlbums.isNotEmpty) {
+        await prefs.setString('spotify_top_albums', 
+          json.encode(_topAlbums.map((album) => _albumToJson(album)).toList()));
+      }
+      
+      // Guardar estrella del día
+      if (_starOfTheDay != null) {
+        await prefs.setString('spotify_star_track', json.encode(_trackToJson(_starOfTheDay!)));
+      }
+      
+      // Guardar timestamp de última actualización
+      await prefs.setInt('spotify_last_update', DateTime.now().millisecondsSinceEpoch);
+    } catch (e) {
+      debugPrint("[ERROR] Error saving data to SharedPreferences: $e");
+    }
+  }
+  
+  // Métodos auxiliares para convertir modelos a JSON
+  Map<String, dynamic> _currentUserToJson() {
+    return {
+      'id': _currentUser!.id,
+      'display_name': _currentUser!.displayName,
+      'email': _currentUser!.email,
+      'images': _currentUser!.imageUrl != null ? [{'url': _currentUser!.imageUrl}] : [],
+      'external_urls': {'spotify': _currentUser!.spotifyUrl},
+      'followers': {'total': _currentUser!.followers},
+    };
+  }
+  
+  Map<String, dynamic> _trackToJson(SpotifyTrack track) {
+    return {
+      'id': track.id,
+      'name': track.name,
+      'artists': [{'name': track.artistName}],
+      'album': {
+        'name': track.albumName,
+        'images': track.imageUrl != null ? [{'url': track.imageUrl}] : [],
+        'external_urls': {'spotify': track.spotifyUrl}
+      },
+      'external_urls': {'spotify': track.spotifyUrl}
+    };
+  }
+  
+  Map<String, dynamic> _albumToJson(SpotifyAlbum album) {
+    return {
+      'id': album.id,
+      'name': album.name,
+      'artists': [{'name': album.artistName}],
+      'images': [{'url': album.coverUrl}],
+      'external_urls': {'spotify': album.spotifyUrl}
+    };
   }
   
   void _setLoading(bool loading) {

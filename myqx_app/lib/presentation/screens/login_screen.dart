@@ -93,7 +93,7 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
                             pageBuilder: (context, animation, secondaryAnimation) => 
                               AppScaffold(
                                 pages: NavbarRoutes.pages,
-                                initialIndex: 0, // This should be the profile tab index
+                                initialIndex: 0,
                               ),
                             transitionsBuilder: (context, animation, secondaryAnimation, child) {
                               return FadeTransition(

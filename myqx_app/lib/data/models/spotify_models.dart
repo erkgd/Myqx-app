@@ -32,6 +32,18 @@ class SpotifyUser {
       followers: json['followers']['total'] ?? 0,
     );
   }
+
+  // Método para serializar el objeto a JSON
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'display_name': displayName,
+      'email': email,
+      'images': imageUrl != null ? [{'url': imageUrl}] : [],
+      'external_urls': {'spotify': spotifyUrl},
+      'followers': {'total': followers},
+    };
+  }
 }
 
 class SpotifyTrack {
@@ -53,7 +65,9 @@ class SpotifyTrack {
 
   factory SpotifyTrack.fromJson(Map<String, dynamic> json) {
     String? imageUrl;
-    if (json['album']['images'] != null && json['album']['images'].isNotEmpty) {
+    if (json['album'] != null && 
+        json['album']['images'] != null && 
+        json['album']['images'].isNotEmpty) {
       imageUrl = json['album']['images'][0]['url'];
     }
 
@@ -65,6 +79,20 @@ class SpotifyTrack {
       imageUrl: imageUrl,
       spotifyUrl: json['external_urls']['spotify'],
     );
+  }
+
+  // Método para serializar el objeto a JSON
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'name': name,
+      'artists': [{'name': artistName}],
+      'album': {
+        'name': albumName,
+        'images': imageUrl != null ? [{'url': imageUrl}] : [],
+      },
+      'external_urls': {'spotify': spotifyUrl},
+    };
   }
 }
 
@@ -96,5 +124,16 @@ class SpotifyAlbum {
       coverUrl: coverUrl ?? '',
       spotifyUrl: json['external_urls']['spotify'],
     );
+  }
+
+  // Método para serializar el objeto a JSON
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'name': name,
+      'artists': [{'name': artistName}],
+      'images': [{'url': coverUrl}],
+      'external_urls': {'spotify': spotifyUrl},
+    };
   }
 }

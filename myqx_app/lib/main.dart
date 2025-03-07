@@ -1,10 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:myqx_app/core/constants/corporative_colors.dart';
 import 'package:myqx_app/core/constants/navbar_routes.dart';
 import 'package:myqx_app/core/services/spotify_auth_service.dart';
 import 'package:myqx_app/presentation/providers/navigation_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:myqx_app/presentation/widgets/general/app_scaffold.dart';
 import 'package:myqx_app/presentation/screens/login_screen.dart';
+
+import 'package:myqx_app/presentation/screens/profile_screen.dart';
+import 'package:myqx_app/presentation/screens/profile_screen.dart';
+import 'package:myqx_app/presentation/screens/search_screen.dart';
+import 'package:myqx_app/presentation/screens/broadcast_screen.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -32,7 +38,7 @@ class MyApp extends StatelessWidget {
       title: 'Myqx',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+        colorScheme: ColorScheme.fromSeed(seedColor: CorporativeColors.mainColor),
         useMaterial3: true,
         textTheme: const TextTheme(
           displayLarge: TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
@@ -61,6 +67,12 @@ class MyApp extends StatelessWidget {
           }
         },
       ),
+      routes: {
+        '/login': (context) => const LoginScreen(),
+        '/profile': (context) => const ProfileScreen(),
+        '/search': (context) => const SearchScreen(),
+        '/broadcast': (context) => const BroadcastScreen(),
+      },
     );
   }
 }
