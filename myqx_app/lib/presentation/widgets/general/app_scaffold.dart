@@ -1,47 +1,40 @@
 import 'package:flutter/material.dart';
+import 'package:myqx_app/core/constants/navbar_routes.dart';
+import 'package:myqx_app/presentation/providers/navigation_provider.dart';
 import 'package:myqx_app/presentation/widgets/general/bottom_navbar.dart';
 import 'package:myqx_app/presentation/widgets/general/gradient_background.dart';
-import 'package:myqx_app/presentation/widgets/general/user_header.dart';
+import 'package:provider/provider.dart';
 
-class AppScaffold extends StatefulWidget {
-  final List<Widget> pages;
-  final int initialIndex;
+class AppScaffold extends StatelessWidget {
+  final Widget? customBody;
+  final bool showNavBar;
 
   const AppScaffold({
     super.key,
-    required this.pages,
-    this.initialIndex = 1,
+    this.customBody,
+    this.showNavBar = true,
   });
 
   @override
-  State<AppScaffold> createState() => _AppScaffoldState();
-}
-
-class _AppScaffoldState extends State<AppScaffold> {
-  late int _currentIndex;
-
-  @override
-  void initState() {
-    super.initState();
-    _currentIndex = widget.initialIndex;
-  }
-
-  void _onIndexChanged(int index) {
-    setState(() {
-      _currentIndex = index;
-    });
-  }
-
-  @override
   Widget build(BuildContext context) {
+    final navProvider = Provider.of<NavigationProvider>(context);
+    final currentIndex = navProvider.currentIndex;
+    
+    // Utilizamos un índice protegido para evitar errores de rango
+    final safeIndex = currentIndex < NavbarRoutes.pages.length 
+        ? currentIndex 
+        : 0;
+    
     return GradientBackground(
       child: Scaffold(
         backgroundColor: Colors.transparent,
-        body: widget.pages[_currentIndex],
-        bottomNavigationBar: BottomNavBar(
-          currentIndex: _currentIndex,
-          onTap: _onIndexChanged,
-        ),
+        body: customBody ?? NavbarRoutes.pages[safeIndex],
+        bottomNavigationBar: showNavBar 
+            ? BottomNavBar(
+                currentIndex: navProvider.visibleIndex,
+                onTap: (index) => navProvider.setCurrentIndex(index),
+              )
+            : null,
       ),
     );
   }

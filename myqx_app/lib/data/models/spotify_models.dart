@@ -65,23 +65,35 @@ class SpotifyTrack {
 
   factory SpotifyTrack.fromJson(Map<String, dynamic> json) {
     String? imageUrl;
-    if (json['album'] != null && 
-        json['album']['images'] != null && 
-        json['album']['images'].isNotEmpty) {
-      imageUrl = json['album']['images'][0]['url'];
+    String albumName = 'Unknown Album';
+    
+    // Verificar si tenemos información del álbum
+    if (json['album'] != null) {
+      if (json['album']['images'] != null && json['album']['images'].isNotEmpty) {
+        imageUrl = json['album']['images'][0]['url'];
+      }
+      albumName = json['album']['name'] ?? 'Unknown Album';
+    }
+
+    // Manejo seguro de artistas
+    String artistName = 'Unknown Artist';
+    if (json['artists'] != null && 
+        json['artists'] is List && 
+        json['artists'].isNotEmpty) {
+      artistName = json['artists'][0]['name'] ?? 'Unknown Artist';
     }
 
     return SpotifyTrack(
-      id: json['id'],
-      name: json['name'],
-      artistName: json['artists'][0]['name'],
-      albumName: json['album']['name'],
+      id: json['id'] ?? '',
+      name: json['name'] ?? 'Unknown Track',
+      artistName: artistName,
+      albumName: albumName,
       imageUrl: imageUrl,
-      spotifyUrl: json['external_urls']['spotify'],
+      spotifyUrl: json['external_urls']?['spotify'] ?? '',
     );
   }
 
-  // Método para serializar el objeto a JSON
+  // Este método debe estar aquí, fuera del constructor fromJson
   Map<String, dynamic> toJson() {
     return {
       'id': id,
@@ -100,29 +112,57 @@ class SpotifyAlbum {
   final String id;
   final String name;
   final String artistName;
+  final String artistId;
   final String coverUrl;
+  final String releaseDate;
   final String spotifyUrl;
+  final int totalTracks;
+  final List<SpotifyTrack>? tracks;
+  final double? rating;
   
   SpotifyAlbum({
     required this.id,
     required this.name,
     required this.artistName,
+    required this.artistId,
     required this.coverUrl,
+    required this.releaseDate,
     required this.spotifyUrl,
+    required this.totalTracks,
+    this.tracks,
+    this.rating,
   });
 
   factory SpotifyAlbum.fromJson(Map<String, dynamic> json) {
+    // Manejar la portada del álbum
     String? coverUrl;
     if (json['images'] != null && json['images'].isNotEmpty) {
       coverUrl = json['images'][0]['url'];
     }
 
+    // Manejar información del artista con seguridad
+    String artistName = 'Unknown Artist';
+    String artistId = '';
+    
+    if (json['artists'] != null && 
+        json['artists'] is List && 
+        json['artists'].isNotEmpty && 
+        json['artists'][0] != null) {
+      artistName = json['artists'][0]['name'] ?? 'Unknown Artist';
+      artistId = json['artists'][0]['id'] ?? '';
+    }
+
     return SpotifyAlbum(
-      id: json['id'],
-      name: json['name'],
-      artistName: json['artists'][0]['name'],
+      id: json['id'] ?? '',
+      name: json['name'] ?? 'Unknown Album',
+      artistName: artistName,
+      artistId: artistId,
       coverUrl: coverUrl ?? '',
-      spotifyUrl: json['external_urls']['spotify'],
+      releaseDate: json['release_date'] ?? '',
+      spotifyUrl: json['external_urls']?['spotify'] ?? '',
+      totalTracks: json['total_tracks'] ?? 0,
+      tracks: null,
+      rating: null,
     );
   }
 

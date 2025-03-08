@@ -45,7 +45,7 @@ class SpotifyLoginButton extends StatelessWidget {
                           // Clear navigation stack completely and add new page
                           Navigator.of(context).pushAndRemoveUntil(
                             MaterialPageRoute(
-                              builder: (context) => AppScaffold(pages: NavbarRoutes.pages),
+                              builder: (context) => AppScaffold(),
                             ),
                             (route) => false, // Remove all previous routes
                           );

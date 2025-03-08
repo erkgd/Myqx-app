@@ -7,10 +7,6 @@ import 'package:provider/provider.dart';
 import 'package:myqx_app/presentation/widgets/general/app_scaffold.dart';
 import 'package:myqx_app/presentation/screens/login_screen.dart';
 
-import 'package:myqx_app/presentation/screens/profile_screen.dart';
-import 'package:myqx_app/presentation/screens/profile_screen.dart';
-import 'package:myqx_app/presentation/screens/search_screen.dart';
-import 'package:myqx_app/presentation/screens/broadcast_screen.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -57,9 +53,7 @@ class MyApp extends StatelessWidget {
         builder: (context, isAuthenticated, child) {
           // Si el usuario está autenticado, mostrar la aplicación principal
           if (isAuthenticated) {
-            return AppScaffold(
-              pages: NavbarRoutes.pages,
-            );
+            return AppScaffold();
           } 
           // Si no está autenticado, mostrar la pantalla de login
           else {
@@ -67,12 +61,7 @@ class MyApp extends StatelessWidget {
           }
         },
       ),
-      routes: {
-        '/login': (context) => const LoginScreen(),
-        '/profile': (context) => const ProfileScreen(),
-        '/search': (context) => const SearchScreen(),
-        '/broadcast': (context) => const BroadcastScreen(),
-      },
+  
     );
   }
 }

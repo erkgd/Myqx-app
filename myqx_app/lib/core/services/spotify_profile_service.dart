@@ -276,8 +276,11 @@ class SpotifyProfileService with ChangeNotifier {
               id: albumId,
               name: album['name'],
               artistName: album['artists'][0]['name'],
-              coverUrl: album['images'][0]['url'],
+              artistId: album['artists'][0]['id'],
+              coverUrl: album['images']?[0]?['url'] ?? '',
+              releaseDate: album['release_date'] ?? '',
               spotifyUrl: album['external_urls']['spotify'],
+              totalTracks: album['total_tracks'] ?? 0,
             );
           }
         }

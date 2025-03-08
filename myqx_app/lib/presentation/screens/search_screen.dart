@@ -171,12 +171,6 @@ class _SearchScreenState extends State<SearchScreen> {
             ],
           ),
       ),
-      bottomNavigationBar: BottomNavBar(
-        currentIndex: 1,
-        onTap: (index) {
-          // Handle navigation
-        },
-      ),
     );
   }
   
@@ -278,6 +272,7 @@ class _SearchScreenState extends State<SearchScreen> {
             ...albums.map((album) => Padding(
               padding: const EdgeInsets.only(bottom: 16),
               child: AlbumHeader(
+                albumId: album.id,
                 albumTitle: album.name,
                 artist: album.artistName,
                 imageUrl: album.coverUrl,

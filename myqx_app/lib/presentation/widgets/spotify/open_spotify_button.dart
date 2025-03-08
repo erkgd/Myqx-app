@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:myqx_app/presentation/widgets/spotify/spotify_link.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:myqx_app/core/constants/corporative_colors.dart';
 
 class OpenSpotifyButton extends StatelessWidget {
   final String spotifyUrl;

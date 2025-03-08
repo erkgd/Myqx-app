@@ -58,6 +58,7 @@ class SpotifySearchService with ChangeNotifier {
         if (data.containsKey('albums')) {
           final List<dynamic> albumItems = data['albums']['items'];
           _albums = albumItems.map((item) => SpotifyAlbum.fromJson(item)).toList();
+          //debugPrint(_albums.toString());
         }
         
         _errorMessage = null;

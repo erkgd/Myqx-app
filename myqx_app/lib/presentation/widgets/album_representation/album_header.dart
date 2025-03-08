@@ -7,6 +7,7 @@ import 'package:myqx_app/presentation/widgets/broadcast/ratedmusicwidgets/rating
 import 'package:myqx_app/presentation/widgets/spotify/open_spotify_button.dart';
 
 class AlbumHeader extends StatefulWidget {
+  final String albumId;
   final String albumTitle;
   final String artist;
   final String imageUrl;
@@ -18,6 +19,7 @@ class AlbumHeader extends StatefulWidget {
 
   const AlbumHeader({
     Key? key,
+    required this.albumId,
     required this.albumTitle,
     required this.artist,
     required this.imageUrl,
@@ -77,6 +79,8 @@ class _AlbumHeaderState extends State<AlbumHeader> {
                 MusicCover(
                   imageUrl: widget.imageUrl,
                   size: coverSize,
+                  albumId: widget.albumId,
+                  isNavigable: true,
                 ),
                 
                 const SizedBox(width: 15),
