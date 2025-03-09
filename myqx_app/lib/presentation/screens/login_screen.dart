@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:myqx_app/core/constants/corporative_colors.dart';
 import 'package:myqx_app/presentation/widgets/auth/spotify_login_button.dart';
-import 'package:myqx_app/core/constants/navbar_routes.dart';
 import 'package:myqx_app/presentation/widgets/general/app_scaffold.dart';
 // Convierte a StatefulWidget
 class LoginScreen extends StatefulWidget {

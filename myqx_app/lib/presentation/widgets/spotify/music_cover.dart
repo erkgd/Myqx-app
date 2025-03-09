@@ -105,13 +105,8 @@ class MusicCover extends StatelessWidget {
   void _navigateToAlbumScreen(BuildContext context) {
     // Si tenemos un ID de álbum, navegar directamente a AlbumScreen
     if (albumId != null) {
-      Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (context) => AlbumScreen.fromId(
-            albumId: albumId!,
-          ),
-        ),
-      );
+      Provider.of<NavigationProvider>(context, listen: false)
+          .navigateToAlbumById(context, albumId!);
     } 
     // Si tenemos datos básicos del álbum, usarlos para la navegación
     else if (albumData != null) {

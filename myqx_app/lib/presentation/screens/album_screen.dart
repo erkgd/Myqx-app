@@ -61,27 +61,49 @@ class _AlbumScreenState extends State<AlbumScreen> {
   late List<String> _trackList;
 
   @override
-  void initState() {
-    super.initState();
-    
-    // Inicializar con los valores proporcionados
-    _albumTitle = widget.albumTitle;
-    _artist = widget.artist;
-    _imageUrl = widget.imageUrl;
-    _releaseYear = widget.releaseYear;
-    _rating = widget.rating;
-    _spotifyUrl = widget.spotifyUrl;
-    _trackList = widget.trackList;
-    
-    // Si se proporcionó un ID, cargar datos completos
-    if (widget.albumId != null) {
-      _loadAlbumDetails();
-      _loadAlbumTracks();
+void initState() {
+  super.initState();
+  
+  // Inicializar con los valores proporcionados
+  _albumTitle = widget.albumTitle;
+  _artist = widget.artist;
+  _imageUrl = widget.imageUrl;
+  _releaseYear = widget.releaseYear;
+  _rating = widget.rating;
+  _spotifyUrl = widget.spotifyUrl;
+  _trackList = widget.trackList;
+  
+  // Cargar secuencialmente (primero detalles, luego tracks si es necesario)
+  if (widget.albumId != null && widget.albumId!.isNotEmpty) {
+    _loadAllData();
+  }
+}
+
+  Future<void> _loadAllData() async {
+    // Usar try/catch general para manejar cualquier error
+    try {
+      // Primero cargar detalles del álbum
+      await _loadAlbumDetails();
+      
+      // Si no hay tracks después de cargar detalles, intentar con tracks específicos
+      if (_trackList.isEmpty) {
+        debugPrint("⚠️ No se obtuvieron tracks de los detalles, cargando específicamente...");
+        await _loadAlbumTracks();
+      }
+    } catch (e) {
+      debugPrint("Error en carga secuencial: $e");
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _errorMessage = 'Error loading album: $e';
+        });
+      }
     }
-    
   }
 
   Future<void> _loadAlbumDetails() async {
+    if (!mounted) return;
+    
     setState(() {
       _isLoading = true;
       _errorMessage = '';
@@ -89,40 +111,62 @@ class _AlbumScreenState extends State<AlbumScreen> {
     
     try {
       final albumService = SpotifyAlbumService();
-      final albumDetails = await albumService.getAlbumDetails(widget.albumId!);
-      print(albumDetails.tracks);
-      setState(() {
-        _albumTitle = albumDetails.name;
-        _artist = albumDetails.artistName;
-        _imageUrl = albumDetails.coverUrl;
-        _releaseYear = _extractYear(albumDetails.releaseDate);
-        _rating = albumDetails.rating ?? 0.0;
-        _spotifyUrl = albumDetails.spotifyUrl;
-        _trackList = albumDetails.tracks?.map((t) => t.name).toList() ?? [];
-        _isLoading = false;
-      });
+      final albumDetails = await albumService.getAlbumDetails(widget.albumId!)
+          .timeout(const Duration(seconds: 15));
+      
+      debugPrint("Detalles del álbum cargados: ${albumDetails.name}");
+      debugPrint("Tracks en detalles: ${albumDetails.tracks?.length ?? 0}");
+      
+      if (mounted) {
+        setState(() {
+          _albumTitle = albumDetails.name;
+          _artist = albumDetails.artistName;
+          _imageUrl = albumDetails.coverUrl;
+          _releaseYear = _extractYear(albumDetails.releaseDate);
+          _rating = albumDetails.rating ?? 0.0;
+          _spotifyUrl = albumDetails.spotifyUrl;
+          
+          // Si hay tracks en los detalles, usarlos
+          if (albumDetails.tracks != null && albumDetails.tracks!.isNotEmpty) {
+            _trackList = albumDetails.tracks!.map((t) => t.name).toList();
+            debugPrint("✅ Se asignaron ${_trackList.length} tracks de detalles");
+          }
+          
+          _isLoading = false;
+        });
+      }
     } catch (e) {
-      setState(() {
-        _errorMessage = 'Error loading album details: $e';
-        _isLoading = false;
-      });
+      debugPrint("Error en detalles: $e");
+      if (mounted) {
+        setState(() {
+          _errorMessage = 'Error loading album details: $e';
+          _isLoading = false;
+        });
+      }
     }
   }
-  
+
   Future<void> _loadAlbumTracks() async {
-    SpotifyAlbumService albumService = SpotifyAlbumService();
+    if (!mounted) return;
+    
     try {
-      final tracks = await albumService.getAlbumTracks(widget.albumId!);
-      setState(() {
-        _trackList = tracks.map((t) => t.name).toList();
-      });
+      final albumService = SpotifyAlbumService();
+      final tracks = await albumService.getAlbumTracks(widget.albumId!)
+          .timeout(const Duration(seconds: 15));
+      
+      debugPrint("Tracks específicos cargados: ${tracks.length}");
+      
+      if (mounted && tracks.isNotEmpty) {
+        setState(() {
+          _trackList = tracks.map((t) => t.name).toList();
+          debugPrint("e asignaron ${_trackList.length} tracks de endpoint específico");
+        });
+      }
     } catch (e) {
-      setState(() {
-        _errorMessage = 'Error loading album tracks: $e';
-      });
+      debugPrint("Error cargando tracks específicos: $e");
+      // No mostrar este error al usuario si ya tenemos datos básicos del álbum
     }
   }
-  
   String _extractYear(String releaseDate) {
     // Extraer el año de la fecha (formato YYYY-MM-DD)
     if (releaseDate.isNotEmpty && releaseDate.length >= 4) {
@@ -195,7 +239,6 @@ class _AlbumScreenState extends State<AlbumScreen> {
                   songId: 'track_$index',
                   rating: 4.0,
                   onRatingChanged: (newRating) {
-                    // Aquí puedes guardar el nuevo rating
                     print('Nueva calificación para $track: $newRating');
                   },
                 )

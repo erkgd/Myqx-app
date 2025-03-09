@@ -4,7 +4,6 @@ import 'package:myqx_app/presentation/widgets/spotify/user_circle.dart';
 import 'package:myqx_app/core/constants/corporative_colors.dart';
 import 'package:myqx_app/core/services/spotify_profile_service.dart';
 import 'package:myqx_app/data/models/spotify_models.dart';
-import 'package:myqx_app/presentation/widgets/general/app_scaffold.dart';
 import 'package:provider/provider.dart';
 import 'package:myqx_app/presentation/providers/navigation_provider.dart';
 class UserHeader extends StatefulWidget implements PreferredSizeWidget {
@@ -111,8 +110,8 @@ class _UserHeaderState extends State<UserHeader> {
                 icon: const Icon(Icons.search, color: Colors.white, size: 28.0),
                 onPressed: () {
                   final navProvider = Provider.of<NavigationProvider>(context, listen: false);
-                    navProvider.navigateToIndex(context, 3);
-                  },
+                  navProvider.setCurrentIndex(3); // Usando el nuevo método para ir a la pantalla de búsqueda
+                },
               ),
             ),
             title: const SizedBox(),
@@ -122,7 +121,7 @@ class _UserHeaderState extends State<UserHeader> {
                 child: GestureDetector(
                   onTap: () {
                     final navProvider = Provider.of<NavigationProvider>(context, listen: false);
-                    navProvider.navigateToIndex(context, 0);
+                    navProvider.setCurrentIndex(0);
                   },
                   child: _isLoading
                       ? _buildLoadingAvatar()

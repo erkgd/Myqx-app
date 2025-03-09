@@ -53,7 +53,8 @@ class SpotifyTrack {
   final String albumName;
   final String? imageUrl;
   final String spotifyUrl;
-  
+  final String? albumId; // Añadir esta propiedad
+
   SpotifyTrack({
     required this.id,
     required this.name,
@@ -61,11 +62,13 @@ class SpotifyTrack {
     required this.albumName,
     required this.imageUrl,
     required this.spotifyUrl,
+    this.albumId, // Añadir este parámetro
   });
 
   factory SpotifyTrack.fromJson(Map<String, dynamic> json) {
     String? imageUrl;
     String albumName = 'Unknown Album';
+    String? albumId; // Variable para el ID del álbum
     
     // Verificar si tenemos información del álbum
     if (json['album'] != null) {
@@ -73,6 +76,7 @@ class SpotifyTrack {
         imageUrl = json['album']['images'][0]['url'];
       }
       albumName = json['album']['name'] ?? 'Unknown Album';
+      albumId = json['album']['id']; // Extraer el ID del álbum
     }
 
     // Manejo seguro de artistas
@@ -90,21 +94,29 @@ class SpotifyTrack {
       albumName: albumName,
       imageUrl: imageUrl,
       spotifyUrl: json['external_urls']?['spotify'] ?? '',
+      albumId: albumId, // Asignar el ID del álbum
     );
   }
+  
+  // Constructor para albumJson también necesita actualizarse
+  factory SpotifyTrack.fromAlbumJson(Map<String, dynamic> json, String albumName, String? albumImageUrl, String albumId) {
+    // Manejo seguro de artistas
+    String artistName = 'Unknown Artist';
+    if (json['artists'] != null && 
+        json['artists'] is List && 
+        json['artists'].isNotEmpty) {
+      artistName = json['artists'][0]['name'] ?? 'Unknown Artist';
+    }
 
-  // Este método debe estar aquí, fuera del constructor fromJson
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'name': name,
-      'artists': [{'name': artistName}],
-      'album': {
-        'name': albumName,
-        'images': imageUrl != null ? [{'url': imageUrl}] : [],
-      },
-      'external_urls': {'spotify': spotifyUrl},
-    };
+    return SpotifyTrack(
+      id: json['id'] ?? '',
+      name: json['name'] ?? 'Unknown Track',
+      artistName: artistName,
+      albumName: albumName,
+      imageUrl: albumImageUrl,
+      spotifyUrl: json['external_urls']?['spotify'] ?? '',
+      albumId: albumId, // Añadir el ID del álbum
+    );
   }
 }
 

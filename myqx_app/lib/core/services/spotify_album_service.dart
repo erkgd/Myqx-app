@@ -47,9 +47,10 @@ class SpotifyAlbumService {
     
     try {
       final token = await _authService.getAccessToken();
-       debugPrint("[DEBUG]${albumId}");
-      // Asegurar que construimos una URI completa y válida
-      final uri = Uri.parse('https://api.spotify.com/v1/albums/$albumId/tracks');
+      debugPrint("🎵 Cargando tracks del álbum: $albumId");
+      
+      // Usa market y limit para obtener todos los tracks
+      final uri = Uri.parse('https://api.spotify.com/v1/albums/$albumId/tracks?market=ES&limit=50');
       
       final response = await http.get(
         uri,
@@ -57,17 +58,22 @@ class SpotifyAlbumService {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
         },
-      );
-      debugPrint("[DEBUG]${response.body}");
+      ).timeout(const Duration(seconds: 10));
+      
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         final List<dynamic> items = data['items'];
+        
+        debugPrint("✅ Se recibieron ${items.length} tracks de la API");
+        
+        // Aquí usamos el método correcto que SÍ existe
         return items.map((item) => SpotifyTrack.fromJson(item)).toList();
       } else {
+        debugPrint("❌ Error en API: ${response.statusCode}");
         throw Exception('Failed to load album tracks: ${response.statusCode}');
       }
     } catch (e) {
-      debugPrint('Error getting album tracks: $e');
+      debugPrint('❌ Error getting album tracks: $e');
       throw Exception('Error getting album tracks: $e');
     }
   }

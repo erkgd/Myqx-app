@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:myqx_app/core/constants/corporative_colors.dart';
 import 'package:myqx_app/core/services/spotify_search_service.dart';
-import 'package:myqx_app/data/models/spotify_models.dart';
+import 'package:myqx_app/presentation/providers/navigation_provider.dart';
 import 'package:myqx_app/presentation/widgets/album_representation/album_header.dart';
 import 'package:myqx_app/presentation/widgets/general/gradient_background.dart';
 import 'package:myqx_app/presentation/widgets/general/user_header.dart';
-import 'package:myqx_app/presentation/widgets/general/bottom_navbar.dart';
+
 
 class SearchScreen extends StatefulWidget {
   const SearchScreen({Key? key}) : super(key: key);
@@ -220,13 +221,10 @@ class _SearchScreenState extends State<SearchScreen> {
     );
   }
   
-  // Los métodos restantes se mantienen sin cambios
   Widget _buildSearchResults() {
-    // Código existente sin cambios
     final albums = _searchService.albums;
     final tracks = _searchService.tracks;
     
-    // Resto del código existente...
     if (albums.isEmpty && tracks.isEmpty) {
       return Expanded(
         child: Center(
@@ -269,19 +267,27 @@ class _SearchScreenState extends State<SearchScreen> {
                 ),
               ),
             ),
+            // CAMBIO AQUÍ: Envolver en GestureDetector para navegación por Provider
             ...albums.map((album) => Padding(
               padding: const EdgeInsets.only(bottom: 16),
-              child: AlbumHeader(
-                albumId: album.id,
-                albumTitle: album.name,
-                artist: album.artistName,
-                imageUrl: album.coverUrl,
-                releaseYear: _extractYear(album.spotifyUrl),
-                rating: 0.0,
-                spotifyUrl: album.spotifyUrl,
-                onRatingChanged: (rating) {
-                  // Handle rating change
+              child: GestureDetector( // Añadido GestureDetector
+                onTap: () {
+                  // Usar NavigationProvider para navegar al álbum
+                  final navProvider = Provider.of<NavigationProvider>(context, listen: false);
+                  navProvider.navigateToAlbumById(context, album.id);
                 },
+                child: AlbumHeader(
+                  albumId: album.id,
+                  albumTitle: album.name,
+                  artist: album.artistName,
+                  imageUrl: album.coverUrl,
+                  releaseYear: _extractYear(album.spotifyUrl),
+                  rating: 0.0,
+                  spotifyUrl: album.spotifyUrl,
+                  onRatingChanged: (rating) {
+                    // Handle rating change
+                  },
+                ),
               ),
             )),
             const SizedBox(height: 24),
@@ -289,19 +295,91 @@ class _SearchScreenState extends State<SearchScreen> {
           
           // Tracks section
           if (tracks.isNotEmpty && _filterTracks) ...[
-            // Código existente
+            const Padding(
+              padding: EdgeInsets.only(bottom: 12, left: 10),
+              child: Text(
+                'Tracks',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            ...tracks.map((track) => Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: GestureDetector( // Añadido para navegación
+                onTap: () {
+                  if (track.albumId != null && track.albumId!.isNotEmpty) {
+                    final navProvider = Provider.of<NavigationProvider>(context, listen: false);
+                    navProvider.navigateToAlbumById(context, track.albumId!);
+                  }
+                },
+                child: ListTile(
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  leading: track.imageUrl != null
+                      ? ClipRRect(
+                          borderRadius: BorderRadius.circular(4),
+                          child: Image.network(
+                            track.imageUrl!,
+                            width: 50,
+                            height: 50,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => Container(
+                              width: 50,
+                              height: 50,
+                              color: Colors.grey[800],
+                              child: const Icon(Icons.music_note, color: Colors.white),
+                            ),
+                          ),
+                        )
+                      : Container(
+                          width: 50,
+                          height: 50,
+                          color: Colors.grey[800],
+                          child: const Icon(Icons.music_note, color: Colors.white),
+                        ),
+                  title: Text(
+                    track.name,
+                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  subtitle: Text(
+                    track.artistName,
+                    style: TextStyle(color: Colors.white.withOpacity(0.7)),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  trailing: const Icon(Icons.more_vert, color: Colors.white),
+                  tileColor: CorporativeColors.blackColor,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+              ),
+            )),
           ],
         ],
       ),
     );
   }
   
-  String _extractYear(String spotifyUrl) {
+  // Método mejorado para extraer año
+  String _extractYear(String? releaseDate) {
+    // Intentar extraer de una fecha real si está disponible
+    if (releaseDate != null && releaseDate.length >= 4) {
+      final year = releaseDate.substring(0, 4);
+      if (int.tryParse(year) != null) {
+        return year;
+      }
+    }
+    
+    // Fallback a año aleatorio (para demo)
     return '${2018 + DateTime.now().millisecondsSinceEpoch % 6}';
   }
   
   Widget _buildInitialState() {
-    // Código existente sin cambios
     return Expanded(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,

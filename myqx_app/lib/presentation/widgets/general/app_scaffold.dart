@@ -20,15 +20,18 @@ class AppScaffold extends StatelessWidget {
     final navProvider = Provider.of<NavigationProvider>(context);
     final currentIndex = navProvider.currentIndex;
     
+    // Obtener las páginas dinámicamente usando el nuevo método getPages
+    final pages = NavbarRoutes.getPages(context);
+    
     // Utilizamos un índice protegido para evitar errores de rango
-    final safeIndex = currentIndex < NavbarRoutes.pages.length 
+    final safeIndex = currentIndex < pages.length 
         ? currentIndex 
         : 0;
     
     return GradientBackground(
       child: Scaffold(
         backgroundColor: Colors.transparent,
-        body: customBody ?? NavbarRoutes.pages[safeIndex],
+        body: customBody ?? pages[safeIndex],
         bottomNavigationBar: showNavBar 
             ? BottomNavBar(
                 currentIndex: navProvider.visibleIndex,
