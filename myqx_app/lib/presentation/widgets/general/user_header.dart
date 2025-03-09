@@ -6,6 +6,7 @@ import 'package:myqx_app/core/services/spotify_profile_service.dart';
 import 'package:myqx_app/data/models/spotify_models.dart';
 import 'package:provider/provider.dart';
 import 'package:myqx_app/presentation/providers/navigation_provider.dart';
+import 'package:myqx_app/presentation/widgets/broadcast/broadcast_action_button.dart';
 class UserHeader extends StatefulWidget implements PreferredSizeWidget {
   final String? imageUrl;
   final String? username;
@@ -149,29 +150,7 @@ class _UserHeaderState extends State<UserHeader> {
             right: 0,
             bottom: -2,
             child: Center(
-              child: Container(
-                height: 40.0,
-                width: 40.0,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: CorporativeColors.gradientColorTop,
-                  border: Border.all(
-                    color: CorporativeColors.mainColor,
-                    width: 2.0,
-                  ),
-                ),
-                child: IconButton(
-                  padding: EdgeInsets.zero,
-                  icon: Icon(
-                    Icons.add,
-                    color: CorporativeColors.mainColor,
-                    size: 35.0,
-                  ),
-                  onPressed: () {
-                    // Acción del botón más
-                  },
-                ),
-              ),
+              child: BroadcastActionButton(), // Usar el nuevo ActionButton encapsulado
             ),
           ),
       ],

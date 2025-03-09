@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:myqx_app/presentation/widgets/general/user_header.dart';
-import 'package:myqx_app/presentation/widgets/album_representation/album_header.dart';
-import 'package:myqx_app/presentation/widgets/album_representation/album_track_card.dart';
+import 'package:myqx_app/presentation/widgets/cards/album_header.dart';
+import 'package:myqx_app/presentation/widgets/cards/album_track_card.dart';
 import 'package:myqx_app/core/services/spotify_album_service.dart'; 
 
 class AlbumScreen extends StatefulWidget {

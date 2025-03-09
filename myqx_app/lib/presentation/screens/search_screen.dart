@@ -3,9 +3,10 @@ import 'package:provider/provider.dart';
 import 'package:myqx_app/core/constants/corporative_colors.dart';
 import 'package:myqx_app/core/services/spotify_search_service.dart';
 import 'package:myqx_app/presentation/providers/navigation_provider.dart';
-import 'package:myqx_app/presentation/widgets/album_representation/album_header.dart';
+import 'package:myqx_app/presentation/widgets/cards/album_header.dart';
 import 'package:myqx_app/presentation/widgets/general/gradient_background.dart';
 import 'package:myqx_app/presentation/widgets/general/user_header.dart';
+import 'package:myqx_app/presentation/widgets/cards/album_track_card.dart';
 
 
 class SearchScreen extends StatefulWidget {
@@ -270,9 +271,8 @@ class _SearchScreenState extends State<SearchScreen> {
             // CAMBIO AQUÍ: Envolver en GestureDetector para navegación por Provider
             ...albums.map((album) => Padding(
               padding: const EdgeInsets.only(bottom: 16),
-              child: GestureDetector( // Añadido GestureDetector
+              child: GestureDetector(
                 onTap: () {
-                  // Usar NavigationProvider para navegar al álbum
                   final navProvider = Provider.of<NavigationProvider>(context, listen: false);
                   navProvider.navigateToAlbumById(context, album.id);
                 },
@@ -306,59 +306,35 @@ class _SearchScreenState extends State<SearchScreen> {
                 ),
               ),
             ),
-            ...tracks.map((track) => Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: GestureDetector( // Añadido para navegación
-                onTap: () {
-                  if (track.albumId != null && track.albumId!.isNotEmpty) {
-                    final navProvider = Provider.of<NavigationProvider>(context, listen: false);
-                    navProvider.navigateToAlbumById(context, track.albumId!);
-                  }
-                },
-                child: ListTile(
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                  leading: track.imageUrl != null
-                      ? ClipRRect(
-                          borderRadius: BorderRadius.circular(4),
-                          child: Image.network(
-                            track.imageUrl!,
-                            width: 50,
-                            height: 50,
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => Container(
-                              width: 50,
-                              height: 50,
-                              color: Colors.grey[800],
-                              child: const Icon(Icons.music_note, color: Colors.white),
-                            ),
-                          ),
-                        )
-                      : Container(
-                          width: 50,
-                          height: 50,
-                          color: Colors.grey[800],
-                          child: const Icon(Icons.music_note, color: Colors.white),
-                        ),
-                  title: Text(
-                    track.name,
-                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  subtitle: Text(
-                    track.artistName,
-                    style: TextStyle(color: Colors.white.withOpacity(0.7)),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  trailing: const Icon(Icons.more_vert, color: Colors.white),
-                  tileColor: CorporativeColors.blackColor,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
+            // CAMBIO AQUÍ: Usar AlbumTrackCard en lugar de ListTile
+            ...tracks.asMap().entries.map((entry) {
+              final index = entry.key;
+              final track = entry.value;
+              
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: GestureDetector(
+                  onTap: () {
+                    if (track.albumId != null && track.albumId!.isNotEmpty) {
+                      final navProvider = Provider.of<NavigationProvider>(context, listen: false);
+                      navProvider.navigateToAlbumById(context, track.albumId!);
+                    }
+                  },
+                  child: AlbumTrackCard(
+                    trackNumber: index + 1,
+                    trackName: track.name,
+                    albumCoverUrl: track.imageUrl ?? '',
+                    spotifyUrl: track.spotifyUrl,
+                    songId: track.id,
+                    rating: 0.0, // Calificación inicial
+                    onRatingChanged: (rating) {
+                      // Manejar cambio de calificación
+                      debugPrint('Nueva calificación para ${track.name}: $rating');
+                    },
                   ),
                 ),
-              ),
-            )),
+              );
+            }),
           ],
         ],
       ),
