@@ -2,10 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:myqx_app/core/constants/corporative_colors.dart';
 import 'package:myqx_app/core/services/spotify_auth_service.dart';
 import 'package:myqx_app/presentation/providers/navigation_provider.dart';
+import 'package:myqx_app/presentation/providers/auth_provider.dart';
+import 'package:myqx_app/presentation/providers/spotify_auth_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:myqx_app/presentation/widgets/general/app_scaffold.dart';
 import 'package:myqx_app/presentation/screens/login_screen.dart';
-
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -14,7 +15,8 @@ void main() {
     MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => NavigationProvider()),
-        // Otros providers que puedas necesitar
+        ChangeNotifierProvider(create: (_) => AuthService()),
+        ChangeNotifierProvider(create: (_) => SpotifyAuthProvider()),
       ],
       child: const MyApp(),
     ),
@@ -26,9 +28,6 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Instancia del servicio de autenticación de Spotify
-    final authService = SpotifyAuthService();
-    
     return MaterialApp(
       title: 'Myqx',
       debugShowCheckedModeBanner: false,
@@ -46,21 +45,31 @@ class MyApp extends StatelessWidget {
           bodyMedium: TextStyle(fontSize: 12, fontWeight: FontWeight.normal),
         ),
       ),
-      // Verificar el estado de autenticación y mostrar la pantalla correspondiente
-      home: ValueListenableBuilder<bool>(
-        valueListenable: authService.isAuthenticated,
-        builder: (context, isAuthenticated, child) {
-          // Si el usuario está autenticado, mostrar la aplicación principal
-          if (isAuthenticated) {
-            return AppScaffold();
-          } 
-          // Si no está autenticado, mostrar la pantalla de login
-          else {
-            return const LoginScreen();
-          }
-        },
-      ),
-  
+      home: const AuthWrapper(),
+    );
+  }
+}
+
+/// Widget que determina qué pantalla mostrar según el estado de autenticación
+class AuthWrapper extends StatelessWidget {
+  const AuthWrapper({Key? key}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    // Obtenemos el estado de autenticación
+    final authService = Provider.of<AuthService>(context);
+    
+    // Escuchamos los cambios en el estado de autenticación
+    return ValueListenableBuilder<bool>(
+      valueListenable: authService.isAuthenticated,
+      builder: (context, isAuthenticated, _) {
+        // Si está autenticado, mostramos la aplicación principal
+        if (isAuthenticated) {
+          return AppScaffold();
+        }
+        // Si no está autenticado, mostramos la pantalla de login
+        return const LoginScreen();
+      },
     );
   }
 }

@@ -132,7 +132,7 @@ class _BroadcastActionButtonState extends State<BroadcastActionButton> with Sing
             onTap: () {
               Navigator.of(context).pop();
               // Compartir playlist
-              debugPrint('Navigate to Share Playlist');
+              debugPrint('Navigate to Share Playlists');
             },
           ),
           
