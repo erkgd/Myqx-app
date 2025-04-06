@@ -185,42 +185,54 @@ class AuthService extends ChangeNotifier {
     try {
       isLoading.value = true;
       errorMessage.value = null;
-      
+
       debugPrint('[DEBUG] Iniciando proceso de login con Spotify');
-      
+
       // Limpiar cualquier estado anterior para evitar conflictos
       await _secureStorage.clearAuthData();
       isAuthenticated.value = false;
       currentUser.value = null;
-      
+
       // 1. Autenticar con Spotify
       final spotifySuccess = await _spotifyAuthProvider.login();
       if (!spotifySuccess) {
-        errorMessage.value = _spotifyAuthProvider.errorMessage ?? 
-                             'Error al autenticar con Spotify';
+        errorMessage.value = _spotifyAuthProvider.errorMessage ??
+            'Error al autenticar con Spotify';
         return false;
       }
-      
+
       // 2. Obtener token y enviarlo al BFF
       final spotifyToken = _spotifyAuthProvider.accessToken;
       if (spotifyToken == null) {
         errorMessage.value = 'No se pudo obtener el token de Spotify';
         return false;
       }
-      
-      // 3. Autenticar con el BFF usando el token de Spotify
+
+      // 3. Obtener datos del perfil del usuario desde Spotify
+      final spotifyUser = _spotifyAuthProvider.currentUser;
+      if (spotifyUser == null) {
+        errorMessage.value = 'No se pudo obtener los datos del usuario de Spotify';
+        return false;
+      }
+
+      // 4. Enviar datos al BFF
       try {
         final response = await _apiClient.post(
           '/auth/spotify',
-          body: {'spotify_token': spotifyToken},
+          body: {
+            'spotifyToken': spotifyToken, // Cambiado de spotify_token a spotifyToken
+            'username': spotifyUser.displayName,
+            'profilePhoto': spotifyUser.imageUrl, // Cambiado de profile_image a profilePhoto
+            'spotifyId': spotifyUser.id, // Añadido el ID de Spotify
+          },
           requiresAuth: false,
         );
-        
-        // 4. Procesar respuesta del BFF
+
+        // 5. Procesar respuesta del BFF
         if (response['token'] != null) {
           // Guardar el nuevo token
           await _secureStorage.saveToken(response['token']);
-          
+
           if (response['user'] != null) {
             try {
               final user = User.fromMap(response['user']);
@@ -232,22 +244,13 @@ class AuthService extends ChangeNotifier {
               // Continuar porque tenemos el token, que es lo crítico
             }
           }
-          
-          // IMPORTANTE: Actualizar estado de autenticación explícitamente
+
+          // Actualizar estado de autenticación explícitamente
           isAuthenticated.value = true;
-          
+
           // Forzar notificación a todos los listeners inmediatamente
           notifyListeners();
-          
-          // Doble verificación para asegurar que el estado se actualizó
-          Future.delayed(const Duration(milliseconds: 100), () {
-            if (!isAuthenticated.value) {
-              debugPrint('[DEBUG] Forzando actualización del estado de autenticación');
-              isAuthenticated.value = true;
-              notifyListeners();
-            }
-          });
-          
+
           debugPrint('[DEBUG] Login exitoso');
           return true;
         } else {
@@ -255,7 +258,8 @@ class AuthService extends ChangeNotifier {
           return false;
         }
       } catch (e) {
-        errorMessage.value = 'Error al procesar autenticación con el servidor: ${e.toString()}';
+        errorMessage.value =
+            'Error al procesar autenticación con el servidor: ${e.toString()}';
         return false;
       }
     } catch (e) {
