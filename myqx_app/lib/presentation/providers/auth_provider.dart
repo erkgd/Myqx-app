@@ -56,32 +56,93 @@ class AuthService extends ChangeNotifier {
   /// Inicializa el estado de autenticación desde almacenamiento local
   Future<void> _initAuthState() async {
     try {
+      isLoading.value = true;
+      
       final token = await _secureStorage.getToken();
+      debugPrint('[DEBUG] Iniciando estado de autenticación. Token existe: ${token != null}');
+      
       if (token != null && token.isNotEmpty) {
         // Verificar token con el servidor
-        final isValid = await verifyToken();
+        debugPrint('[DEBUG] Verificando validez del token...');
+        final isValid = await verifyToken().timeout(
+          const Duration(seconds: 5),
+          onTimeout: () {
+            debugPrint('[DEBUG] Tiempo de espera agotado al verificar token');
+            return false;
+          },
+        );
         
         if (isValid) {
+          debugPrint('[DEBUG] Token válido, cargando datos de usuario');
           // Cargar datos del usuario almacenados localmente
           final userData = await _secureStorage.getUserData();
           if (userData != null && userData.isNotEmpty) {
-            currentUser.value = User.fromJson(userData);
+            try {
+              currentUser.value = User.fromJson(userData);
+              isAuthenticated.value = true;
+              debugPrint('[DEBUG] Usuario autenticado correctamente');
+            } catch (e) {
+              debugPrint('[DEBUG] Error al parsear datos de usuario: $e');
+              await _cleanAuthState();
+            }
+          } else {
+            debugPrint('[DEBUG] No se encontraron datos de usuario');
+            await _cleanAuthState();
           }
-          isAuthenticated.value = true;
         } else {
-          // Token no válido, limpiar almacenamiento
-          await _secureStorage.deleteToken();
-          await _secureStorage.deleteUserData();
-          isAuthenticated.value = false;
-          currentUser.value = null;
+          debugPrint('[DEBUG] Token inválido, limpiando estado');
+          await _cleanAuthState();
         }
       } else {
-        isAuthenticated.value = false;
-        currentUser.value = null;
+        debugPrint('[DEBUG] No hay token de autenticación');
+        await _cleanAuthState();
       }
     } catch (e) {
+      debugPrint('[DEBUG] Error en _initAuthState: $e');
+      await _cleanAuthState();
+    } finally {
+      isLoading.value = false;
+    }
+  }
+  
+  /// Método auxiliar para limpiar el estado de autenticación
+  Future<void> _cleanAuthState() async {
+    try {
+      await _secureStorage.clearAuthData();
+    } catch (e) {
+      debugPrint('[DEBUG] Error al limpiar datos de autenticación: $e');
+    } finally {
       isAuthenticated.value = false;
       currentUser.value = null;
+    }
+  }
+  
+  /// Método público para forzar la limpieza de todo el estado de autenticación
+  /// Se usa como último recurso cuando hay problemas con la sesión
+  Future<void> forceCleanAuthState() async {
+    try {
+      debugPrint('[DEBUG] Forzando limpieza completa del estado de autenticación');
+      
+      // 1. Limpiar todo el almacenamiento seguro
+      await _secureStorage.clearAuthData();
+      
+      // 2. Limpiar tokens de Spotify
+      try {
+        await _spotifyAuthProvider.clearAuthData();
+        await _spotifyAuthService.logout();
+      } catch (e) {
+        debugPrint('[DEBUG] Error al limpiar datos de Spotify: $e');
+        // Continuamos con el proceso aunque falle esto
+      }
+      
+      // 3. Resetear el estado observable
+      currentUser.value = null;
+      isAuthenticated.value = false;
+      errorMessage.value = null;
+      
+      debugPrint('[DEBUG] Limpieza forzada completada con éxito');
+    } catch (e) {
+      debugPrint('[DEBUG] Error durante la limpieza forzada: $e');
     }
   }
   
@@ -125,6 +186,13 @@ class AuthService extends ChangeNotifier {
       isLoading.value = true;
       errorMessage.value = null;
       
+      debugPrint('[DEBUG] Iniciando proceso de login con Spotify');
+      
+      // Limpiar cualquier estado anterior para evitar conflictos
+      await _secureStorage.clearAuthData();
+      isAuthenticated.value = false;
+      currentUser.value = null;
+      
       // 1. Autenticar con Spotify
       final spotifySuccess = await _spotifyAuthProvider.login();
       if (!spotifySuccess) {
@@ -150,15 +218,37 @@ class AuthService extends ChangeNotifier {
         
         // 4. Procesar respuesta del BFF
         if (response['token'] != null) {
+          // Guardar el nuevo token
           await _secureStorage.saveToken(response['token']);
           
           if (response['user'] != null) {
-            final user = User.fromMap(response['user']);
-            await _secureStorage.saveUserData(user.toJson());
-            currentUser.value = user;
+            try {
+              final user = User.fromMap(response['user']);
+              await _secureStorage.saveUserData(user.toJson());
+              currentUser.value = user;
+              debugPrint('[DEBUG] Datos de usuario guardados correctamente');
+            } catch (e) {
+              debugPrint('[DEBUG] Error al guardar datos de usuario: $e');
+              // Continuar porque tenemos el token, que es lo crítico
+            }
           }
           
+          // IMPORTANTE: Actualizar estado de autenticación explícitamente
           isAuthenticated.value = true;
+          
+          // Forzar notificación a todos los listeners inmediatamente
+          notifyListeners();
+          
+          // Doble verificación para asegurar que el estado se actualizó
+          Future.delayed(const Duration(milliseconds: 100), () {
+            if (!isAuthenticated.value) {
+              debugPrint('[DEBUG] Forzando actualización del estado de autenticación');
+              isAuthenticated.value = true;
+              notifyListeners();
+            }
+          });
+          
+          debugPrint('[DEBUG] Login exitoso');
           return true;
         } else {
           errorMessage.value = 'Respuesta del servidor inválida';
@@ -173,52 +263,140 @@ class AuthService extends ChangeNotifier {
       return false;
     } finally {
       isLoading.value = false;
+      // Forzar una notificación adicional al terminar
+      notifyListeners();
     }
   }
   
   /// Cierra la sesión del usuario
-  Future<void> logout() async {
+  Future<bool> logout() async {
     try {
       isLoading.value = true;
       errorMessage.value = null;
       
-      // Intentar notificar al servidor sobre el logout
+      debugPrint('[DEBUG] Iniciando proceso de logout...');
+      
+      // 1. Desconectar Spotify si está conectado (con mejor manejo de errores)
       try {
-        await _apiClient.post('/auth/logout');
-      } catch (_) {
+        debugPrint('[DEBUG] Desconectando Spotify...');
+        await _spotifyAuthProvider.logout().timeout(
+          const Duration(seconds: 5),
+          onTimeout: () {
+            debugPrint('[DEBUG] Tiempo de espera agotado al desconectar Spotify');
+            return;
+          },
+        );
+      } catch (e) {
+        debugPrint('[DEBUG] Error al desconectar Spotify: $e');
+        // Continuamos con el proceso de logout
+      }
+      
+      // 2. Limpiar datos locales - CRÍTICO
+      debugPrint('[DEBUG] Eliminando datos locales...');
+      await _secureStorage.clearAuthData(); // Usar clearAuthData en lugar de métodos separados
+      
+      // 3. Intentar notificar al servidor sobre el logout (opcional)
+      try {
+        debugPrint('[DEBUG] Notificando al servidor sobre logout...');
+        await _apiClient.post('/auth/logout', requiresAuth: false).timeout(
+          const Duration(seconds: 3),
+          onTimeout: () {
+            debugPrint('[DEBUG] Tiempo de espera agotado al notificar al servidor');
+            return;
+          },
+        );
+      } catch (e) {
+        debugPrint('[DEBUG] Error al notificar al servidor sobre logout: $e');
         // Ignorar errores del servidor al hacer logout
       }
       
-      // Desconectar Spotify si está conectado
-      try {
-        await _spotifyAuthProvider.logout();
-      } catch (_) {
-        // Ignorar errores al desconectar Spotify
-      }
-      
-      // Limpiar datos locales
-      await _secureStorage.deleteToken();
-      await _secureStorage.deleteUserData();
-      
-      // Actualizar estado observable
-      isAuthenticated.value = false;
+      // 4. Al final, cuando todo el proceso de limpieza ha terminado, 
+      // actualizamos el estado observable
       currentUser.value = null;
+      isAuthenticated.value = false;
+      
+      debugPrint('[DEBUG] Logout completado con éxito');
+      return true;
     } catch (e) {
+      debugPrint('[DEBUG] Error general durante el logout: $e');
       errorMessage.value = 'Error al cerrar sesión: ${e.toString()}';
+      
+      // Incluso si hay un error, intentamos restablecer el estado a no autenticado
+      try {
+        await _secureStorage.clearAuthData();
+        isAuthenticated.value = false;
+        currentUser.value = null;
+      } catch (_) {}
+      
+      return false;
     } finally {
       isLoading.value = false;
+      notifyListeners(); // Asegurarnos de notificar a todos los listeners
     }
   }
   
-  /// Verifica si el token actual es válido
+  /// Verifica si un token almacenado es válido
   Future<bool> verifyToken() async {
     try {
-      final token = await _secureStorage.getToken();
-      if (token == null || token.isEmpty) return false;
+      debugPrint('[DEBUG] Verificando validez del token...');
       
-      final response = await _apiClient.get('/auth/verify');
-      return response['valid'] == true;
+      // Verificar si hay un token almacenado
+      final token = await _secureStorage.getToken();
+      if (token == null) {
+        debugPrint('[DEBUG] No hay token almacenado para verificar');
+        return false;
+      }
+      
+      // Intentar verificar el token con el servidor
+      try {
+        final response = await _apiClient.post(
+          '/auth/verify',
+          requiresAuth: true,
+        ).timeout(const Duration(seconds: 3));
+        
+        final isValid = response['valid'] == true;
+        debugPrint('[DEBUG] Verificación de token: ${isValid ? "Válido" : "No válido"}');
+        
+        if (isValid && !isAuthenticated.value) {
+          // Si el token es válido pero no estamos autenticados, actualizar el estado
+          debugPrint('[DEBUG] Token válido pero estado no autenticado, actualizando...');
+          isAuthenticated.value = true;
+          
+          // Intentar cargar los datos del usuario si no están disponibles
+          if (currentUser.value == null) {
+            try {
+              final userResponse = await _apiClient.get('/auth/me');
+              if (userResponse['user'] != null) {
+                final user = User.fromMap(userResponse['user']);
+                await _secureStorage.saveUserData(user.toJson());
+                currentUser.value = user;
+                debugPrint('[DEBUG] Datos de usuario cargados correctamente');
+              }
+            } catch (e) {
+              debugPrint('[DEBUG] Error al cargar datos del usuario: $e');
+              // No marcamos como error crítico, ya que el token sí es válido
+            }
+          }
+        }
+        
+        return isValid;
+      } catch (e) {
+        debugPrint('[DEBUG] Error al verificar token: $e');
+        return false;
+      }
     } catch (e) {
+      debugPrint('[DEBUG] Error general al verificar token: $e');
+      return false;
+    }
+  }
+  
+  /// Verifica si hay un token de autenticación almacenado
+  Future<bool> hasStoredToken() async {
+    try {
+      final token = await _secureStorage.getToken();
+      return token != null && token.isNotEmpty;
+    } catch (e) {
+      debugPrint('[DEBUG] Error al verificar token almacenado: $e');
       return false;
     }
   }

@@ -150,6 +150,30 @@ class SpotifyAuthProvider extends ChangeNotifier {
     }
   }
   
+  /// Limpia todos los datos de autenticación de Spotify
+  Future<void> clearAuthData() async {
+    try {
+      _isLoading = true;
+      notifyListeners();
+      
+      // Limpiar datos en la instancia
+      _currentUser = null;
+      _topTracks = null;
+      _accessToken = null;
+      _errorMessage = null;
+      
+      // Forzar logout en el servicio de autenticación
+      await _authService.logout();
+      
+      debugPrint('[DEBUG] Datos de autenticación de Spotify limpiados');
+    } catch (e) {
+      debugPrint('[DEBUG] Error al limpiar datos de Spotify: $e');
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+  
   // Observador para cambios en el estado de autenticación
   void _onAuthStateChanged() {
     notifyListeners();

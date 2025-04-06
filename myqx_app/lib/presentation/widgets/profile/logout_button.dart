@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:myqx_app/core/constants/corporative_colors.dart';
-import 'package:myqx_app/core/services/spotify_auth_service.dart';
+import 'package:myqx_app/presentation/providers/auth_provider.dart';
 import 'package:myqx_app/presentation/screens/login_screen.dart';
+import 'package:provider/provider.dart';
 
 class LogoutButton extends StatelessWidget {
   const LogoutButton({Key? key}) : super(key: key);
@@ -29,22 +30,30 @@ class LogoutButton extends StatelessWidget {
             }
           );
           
-          // Obtener la instancia del servicio de autenticación
-          final authService = SpotifyAuthService();
-          
-          // Cerrar la sesión
-          await authService.logout();
-          
-          // Cerrar el indicador de carga
-          Navigator.of(context).pop();
-          
-          // Navegar a la pantalla de login y limpiar el historial de navegación
-          Navigator.of(context).pushAndRemoveUntil(
-            MaterialPageRoute(
-              builder: (context) => const LoginScreen(),
-            ),
-            (route) => false,
-          );
+          try {
+            debugPrint('[DEBUG] Iniciando cierre de sesión completo');
+            
+            // Obtener el AuthService a través de Provider
+            final authService = Provider.of<AuthService>(context, listen: false);
+            
+            // Usar la limpieza forzada completa para asegurar que todos los datos se eliminen
+            await authService.forceCleanAuthState();
+            
+            debugPrint('[DEBUG] Cierre de sesión completado exitosamente');
+          } catch (e) {
+            debugPrint('[DEBUG] Error durante el cierre de sesión: $e');
+          } finally {
+            // Cerrar el indicador de carga
+            Navigator.of(context).pop();
+            
+            // Navegar a la pantalla de login y limpiar el historial de navegación
+            Navigator.of(context).pushAndRemoveUntil(
+              MaterialPageRoute(
+                builder: (context) => const LoginScreen(),
+              ),
+              (route) => false,
+            );
+          }
         },
         style: OutlinedButton.styleFrom(
           side: const BorderSide(

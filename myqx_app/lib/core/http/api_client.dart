@@ -32,8 +32,13 @@ class ApiClient {
 
     if (requiresAuth) {
       final token = await _secureStorage.getToken();
-      if (token != null) {
+      if (token != null && token.isNotEmpty) {
         headers['Authorization'] = 'Bearer $token';
+      } else {
+        debugPrint('[DEBUG] Advertencia: Se solicitó una petición autenticada pero no hay token disponible');
+        // Si se requiere autenticación pero no hay token,
+        // podría lanzar una excepción aquí, pero es mejor dejar que
+        // el servidor responda con 401 para un mejor manejo del flujo
       }
     }
 

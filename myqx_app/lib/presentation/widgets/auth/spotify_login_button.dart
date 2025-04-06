@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:myqx_app/core/constants/corporative_colors.dart';
 import 'package:myqx_app/core/services/spotify_auth_service.dart';
-import 'package:myqx_app/presentation/widgets/general/app_scaffold.dart';
-
+import 'package:provider/provider.dart';
+import 'package:myqx_app/presentation/providers/auth_provider.dart';
 
 class SpotifyLoginButton extends StatelessWidget {
   final Function? onLoginSuccess;
@@ -16,93 +16,103 @@ class SpotifyLoginButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final authService = SpotifyAuthService();
+    final authService = Provider.of<AuthService>(context, listen: false);
+    final spotifyAuthService = SpotifyAuthService();
     
     return ValueListenableBuilder<bool>(
-      valueListenable: authService.isLoading,
+      valueListenable: spotifyAuthService.isLoading,
       builder: (context, isLoading, child) {
-        return ElevatedButton(
+        return ElevatedButton.icon(
           onPressed: isLoading 
               ? null 
               : () async {
                   try {
-                    final success = await authService.login();
+                    debugPrint('[DEBUG] Iniciando proceso de login con Spotify desde componente');
+                    
+                    // Limpiamos cualquier error anterior
+                    authService.errorMessage.value = null;
+                    
+                    // Verificar si hay un token persistente que pueda estar causando problemas
+                    final hasToken = await authService.hasStoredToken();
+                    if (hasToken) {
+                      debugPrint('[DEBUG] SpotifyLoginButton: Se encontró un token persistente, limpiándolo antes de iniciar sesión');
+                      await authService.forceCleanAuthState();
+                    }
+                    
+                    // Usar el authService del Provider para el login con Spotify
+                    final success = await authService.loginWithSpotify();
 
                     if (success) {
-                      debugPrint('[DEBUG] Login successful - navigating to profile');
+                      debugPrint('[DEBUG] Login con Spotify exitoso desde componente');
                       
-                      // Longer delay to ensure state updates
+                      // Esperar un momento para asegurar que el estado se actualiza
                       await Future.delayed(const Duration(milliseconds: 300));
                       
-                      // Use a more direct approach to navigation
-                      if (context.mounted) {
-                        if (onLoginSuccess != null) {
-                          onLoginSuccess!();
-                        } else {
-                          // Force navigation regardless of ValueListenable state
-                          debugPrint('[DEBUG] Using direct navigation to AppScaffold');
-                          
-                          // Clear navigation stack completely and add new page
-                          Navigator.of(context).pushAndRemoveUntil(
-                            MaterialPageRoute(
-                              builder: (context) => AppScaffold(),
-                            ),
-                            (route) => false, // Remove all previous routes
-                          );
-                        }
+                      if (context.mounted && onLoginSuccess != null) {
+                        onLoginSuccess!();
+                      }
+                      
+                      // Doble verificación del estado de autenticación
+                      if (!authService.isAuthenticated.value) {
+                        debugPrint('[DEBUG] Forzando actualización del estado de autenticación después de login exitoso');
+                        authService.isAuthenticated.value = true;
+                        authService.notifyListeners();
                       }
                     } else {
-                      debugPrint('[DEBUG] Login failed');
+                      debugPrint('[DEBUG] Login con Spotify falló desde componente');
                       if (onLoginFailed != null) {
                         onLoginFailed!();
                       }
                     }
                   } catch (e) {
-                    debugPrint('[ERROR] During login/navigation: $e');
+                    debugPrint('[ERROR] Error en login con Spotify: $e');
+                    
                     if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                          content: Text('Error: $e'),
+                          content: Text('Error al conectar con Spotify: $e'),
                           backgroundColor: Colors.red,
                         ),
                       );
+                      
+                      if (onLoginFailed != null) {
+                        onLoginFailed!();
+                      }
                     }
                   }
                 },
           style: ElevatedButton.styleFrom(
-            backgroundColor: CorporativeColors.spotifyColor,
-            foregroundColor: Colors.white,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            backgroundColor: Colors.black.withOpacity(0.4),
+            foregroundColor: const Color(0xFF1DB954),
+            elevation: 0,
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(25),
-            ),
-            elevation: 2,
-            textStyle: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
+              borderRadius: BorderRadius.circular(27),
             ),
           ),
-          child: isLoading 
+          icon: isLoading 
               ? const SizedBox(
                   height: 20,
                   width: 20,
                   child: CircularProgressIndicator(
-                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF1DB954)),
                     strokeWidth: 2,
                   ),
                 )
-              : Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Image.network(
-                      'https://storage.googleapis.com/pr-newsroom-wp/1/2018/11/Spotify_Logo_RGB_White.png',
-                      height: 20,
-                      width: 20,
-                    ),
-                    const SizedBox(width: 8),
-                    const Text('Connect with Spotify'),
-                  ],
+              : Image.asset(
+                  'assets/images/spotifyLogo.svg',
+                  height: 24,
+                  errorBuilder: (context, error, stackTrace) {
+                    return const Icon(Icons.music_note, color: Color(0xFF1DB954));
+                  },
                 ),
+          label: Text(
+            isLoading ? 'CONNECTING...' : 'CONTINUE WITH SPOTIFY',
+            style: const TextStyle(
+              color: Color(0xFF1DB954),
+              fontWeight: FontWeight.bold,
+              fontSize: 16,
+            ),
+          ),
         );
       },
     );

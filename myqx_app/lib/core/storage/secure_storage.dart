@@ -26,8 +26,11 @@ class SecureStorage {
     return await _storage.read(key: _tokenKey);
   }
   
+  // Eliminar token de autenticación
   Future<void> deleteToken() async {
+    // Eliminamos tanto el token de acceso como el refresh token
     await _storage.delete(key: _tokenKey);
+    await _storage.delete(key: _refreshTokenKey);
   }
 
   // Métodos para refresh token

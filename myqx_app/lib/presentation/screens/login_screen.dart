@@ -4,6 +4,7 @@ import 'package:myqx_app/core/constants/corporative_colors.dart';
 import 'package:myqx_app/presentation/providers/auth_provider.dart';
 import 'package:myqx_app/presentation/widgets/general/loading_overlay.dart';
 import 'package:myqx_app/presentation/widgets/general/app_scaffold.dart';
+import 'package:myqx_app/presentation/widgets/auth/spotify_login_button.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({Key? key}) : super(key: key);
@@ -32,88 +33,127 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
-  
+
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
-    // Manejar el regreso desde el navegador en caso de OAuth
     if (state == AppLifecycleState.resumed) {
       debugPrint('[DEBUG] App returned to foreground');
-      // Aquí podrías verificar si hay una autenticación pendiente
       _checkPendingAuthentication();
     }
   }
-  
-  void _checkPendingAuthentication() {
-    // Verificar si hay un proceso de autenticación pendiente
+
+  void _checkPendingAuthentication() async {
+    debugPrint('[DEBUG] Verificando si hay una autenticación pendiente...');
     final authService = Provider.of<AuthService>(context, listen: false);
-    // Implementación depende de cómo manejas el estado de autenticación pendiente
+
+    try {
+      final hasToken = await authService.hasStoredToken();
+      final isAuthenticated = authService.isAuthenticated.value;
+
+      debugPrint('[DEBUG] Estado de autenticación: ${isAuthenticated ? "Autenticado" : "No autenticado"}');
+      debugPrint('[DEBUG] Token almacenado: ${hasToken ? "Existe" : "No existe"}');
+
+      if (hasToken && !isAuthenticated) {
+        debugPrint('[DEBUG] Detectado posible proceso OAuth pendiente, verificando...');
+        final isValid = await authService.verifyToken();
+        if (isValid) {
+          debugPrint('[DEBUG] Token verificado exitosamente después de OAuth');
+          authService.isAuthenticated.value = true;
+          authService.notifyListeners();
+          if (mounted) {
+            setState(() {});
+          }
+          Future.delayed(const Duration(milliseconds: 100), () {
+            if (!authService.isAuthenticated.value && mounted) {
+              debugPrint('[DEBUG] Forzando actualización del estado de autenticación');
+              authService.isAuthenticated.value = true;
+              authService.notifyListeners();
+              setState(() {});
+            }
+          });
+        } else {
+          debugPrint('[DEBUG] Token no válido después de OAuth, limpiando estado');
+          await authService.forceCleanAuthState();
+        }
+      } else if (hasToken) {
+        debugPrint('[DEBUG] Verificando validez del token existente...');
+        final isValid = await authService.verifyToken();
+        if (!isValid) {
+          debugPrint('[DEBUG] Token existente no es válido, limpiando estado');
+          await authService.forceCleanAuthState();
+        } else if (!isAuthenticated) {
+          debugPrint('[DEBUG] Token válido pero no autenticado, actualizando estado');
+          authService.isAuthenticated.value = true;
+          authService.notifyListeners();
+        }
+      }
+
+      if (!mounted) return;
+      setState(() {});
+    } catch (e) {
+      debugPrint('[DEBUG] Error al verificar autenticación pendiente: $e');
+      await authService.forceCleanAuthState();
+    }
   }
 
-  // Handler for standard login with username and password
   Future<void> _handleLogin() async {
     if (!_formKey.currentState!.validate()) return;
-    
+
+    if (!mounted) return;
     setState(() {
       _isLoading = true;
       _errorMessage = null;
     });
-    
+
     final authService = Provider.of<AuthService>(context, listen: false);
-    
+
     try {
+      debugPrint('[DEBUG] Login: Intentando iniciar sesión con username: ${_usernameController.text.trim()}');
+      final hasToken = await authService.hasStoredToken();
+      debugPrint('[DEBUG] Login: Estado del token antes de iniciar sesión: ${hasToken ? "Existe" : "No existe"}');
+
+      if (hasToken) {
+        debugPrint('[DEBUG] Login: Se encontró un token persistente, limpiándolo antes de iniciar sesión');
+        await authService.logout();
+      }
+
       final result = await authService.login(
         _usernameController.text.trim(),
         _passwordController.text,
       );
-      
+
+      if (!mounted) return;
+
       if (result == null) {
+        debugPrint('[DEBUG] Login: Falló el inicio de sesión');
         setState(() {
-          _errorMessage = authService.errorMessage.value ?? 
-                         'Login error. Please verify your credentials.';
+          _errorMessage = authService.errorMessage.value ??
+              'Login error. Please verify your credentials.';
         });
+      } else {
+        debugPrint('[DEBUG] Login: Inicio de sesión exitoso');
       }
     } catch (e) {
+      debugPrint('[DEBUG] Login: Excepción en el proceso de login: $e');
+      if (!mounted) return;
       setState(() {
         _errorMessage = 'Error: ${e.toString()}';
       });
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
-  
-  // Handler for Spotify login
-  Future<void> _handleSpotifyLogin() async {
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
-    
-    final authService = Provider.of<AuthService>(context, listen: false);
-    
-    try {
-      debugPrint('[DEBUG] Starting Spotify login process');
-      final success = await authService.loginWithSpotify();
-      
-      if (success) {
-        debugPrint('[DEBUG] Spotify login successful');
-      } else {
-        debugPrint('[DEBUG] Spotify login failed');
-        setState(() {
-          _errorMessage = authService.errorMessage.value ?? 
-                         'Error signing in with Spotify.';
-        });
-      }
-    } catch (e) {
-      debugPrint('[DEBUG] Exception during Spotify login: ${e.toString()}');
-      setState(() {
-        _errorMessage = 'Error: ${e.toString()}';
-      });
-    } finally {
+
+  void _showError(String error) {
+    if (mounted) {
       setState(() {
         _isLoading = false;
+        _errorMessage = error;
       });
     }
   }
@@ -143,7 +183,6 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
                   mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // Logo
                     const Text(
                       'MyQx',
                       style: TextStyle(
@@ -153,10 +192,7 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
                       ),
                       textAlign: TextAlign.center,
                     ),
-                    
                     const SizedBox(height: 16),
-                    
-                    // Subtitle
                     const Text(
                       'Discover your music compatibility',
                       textAlign: TextAlign.center,
@@ -165,10 +201,7 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
                         fontSize: 18,
                       ),
                     ),
-                    
                     const SizedBox(height: 60),
-                    
-                    // Error message
                     if (_errorMessage != null)
                       Container(
                         padding: const EdgeInsets.all(12),
@@ -184,45 +217,27 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
                           textAlign: TextAlign.center,
                         ),
                       ),
-                    
-                    // Spotify login button - styled as in the new design
                     Container(
                       height: 54,
                       decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(27), // More rounded
+                        borderRadius: BorderRadius.circular(27),
                         border: Border.all(color: const Color(0xFF1DB954), width: 1),
                       ),
-                      child: ElevatedButton.icon(
-                        onPressed: _handleSpotifyLogin,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.black.withOpacity(0.4),
-                          foregroundColor: const Color(0xFF1DB954),
-                          elevation: 0,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(27),
-                          ),
-                        ),
-                        icon: Image.asset(
-                          'assets/images/spotifyLogo.svg',
-                          height: 24,
-                          errorBuilder: (context, error, stackTrace) {
-                            return const Icon(Icons.music_note, color: Color(0xFF1DB954));
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(27),
+                        child: SpotifyLoginButton(
+                          onLoginSuccess: () {
+                            debugPrint('[DEBUG] Login con Spotify exitoso desde el componente');
                           },
-                        ),
-                        label: const Text(
-                          'CONTINUE WITH SPOTIFY',
-                          style: TextStyle(
-                            color: Color(0xFF1DB954),
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                          ),
+                          onLoginFailed: () {
+                            final authService = Provider.of<AuthService>(context, listen: false);
+                            _showError(authService.errorMessage.value ??
+                                'Error al iniciar sesión con Spotify.');
+                          },
                         ),
                       ),
                     ),
-                    
                     const SizedBox(height: 24),
-                    
-                    // Texto informativo sobre el uso de Spotify
                     const Text(
                       'By connecting, you agree to share your Spotify data with MyQx. We only access your music preferences to provide our service.',
                       textAlign: TextAlign.center,
@@ -231,10 +246,7 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
                         fontSize: 12,
                       ),
                     ),
-                    
                     const SizedBox(height: 40),
-                    
-                    // OR Separator
                     Row(
                       children: const [
                         Expanded(child: Divider(color: Colors.white30)),
@@ -245,10 +257,7 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
                         Expanded(child: Divider(color: Colors.white30)),
                       ],
                     ),
-                    
                     const SizedBox(height: 40),
-                    
-                    // Login form
                     Container(
                       padding: const EdgeInsets.all(20),
                       decoration: BoxDecoration(
@@ -328,8 +337,6 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
                               onFieldSubmitted: (_) => _handleLogin(),
                             ),
                             const SizedBox(height: 24),
-                            
-                            // Login button
                             ElevatedButton(
                               onPressed: _handleLogin,
                               style: ElevatedButton.styleFrom(
@@ -346,10 +353,7 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
                         ),
                       ),
                     ),
-                    
                     const SizedBox(height: 24),
-                    
-                    // Registration link
                     TextButton(
                       onPressed: () {
                         // Navigate to registration screen

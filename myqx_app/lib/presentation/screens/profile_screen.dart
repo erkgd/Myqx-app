@@ -8,7 +8,6 @@ import 'package:myqx_app/presentation/widgets/profile/top_five_albums.dart';
 import 'package:myqx_app/presentation/widgets/profile/user_compatibility.dart';
 import 'package:myqx_app/presentation/widgets/spotify/open_spotify_button.dart';
 
-
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
 
@@ -16,7 +15,7 @@ class ProfileScreen extends StatefulWidget {
   State<ProfileScreen> createState() => _ProfileScreenState();
 }
 
-class _ProfileScreenState extends State<ProfileScreen> {
+class _ProfileScreenState extends State<ProfileScreen> with WidgetsBindingObserver {
   bool _isFollowing = false;
   bool _isLoading = true;
   late final SpotifyProfileService _profileService;
@@ -26,6 +25,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
     super.initState();
     _profileService = SpotifyProfileService();
     _loadProfileData();
+    // Registrar el observador del ciclo de vida
+    WidgetsBinding.instance.addObserver(this);
+  }
+  
+  @override
+  void dispose() {
+    // Desregistrar el observador del ciclo de vida
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+  
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    if (state == AppLifecycleState.resumed) {
+      debugPrint("[DEBUG] Profile: App resumed, recargando datos del perfil");
+      // Recargar los datos del perfil cuando la app vuelve al primer plano
+      _loadProfileData();
+    }
   }
   
   Future<void> _loadProfileData() async {
@@ -35,7 +53,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
       });
     }
     try {
+      debugPrint("[DEBUG] Profile: Cargando datos del perfil");
       await _profileService.initialize();
+      debugPrint("[DEBUG] Profile: Datos del perfil cargados exitosamente");
     } catch (e) {
       debugPrint("[ERROR] Failed to load profile data: $e");
     } finally {

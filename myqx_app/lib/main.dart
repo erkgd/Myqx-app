@@ -51,25 +51,119 @@ class MyApp extends StatelessWidget {
 }
 
 /// Widget que determina qué pantalla mostrar según el estado de autenticación
-class AuthWrapper extends StatelessWidget {
+class AuthWrapper extends StatefulWidget {
   const AuthWrapper({Key? key}) : super(key: key);
+
+  @override
+  State<AuthWrapper> createState() => _AuthWrapperState();
+}
+
+class _AuthWrapperState extends State<AuthWrapper> with WidgetsBindingObserver {
+  bool _initialCheckDone = false;
+  
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    // Verificar el estado de autenticación cuando se inicia
+    _checkAuthState();
+  }
+  
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+  
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      // Al volver al primer plano, verificar si el estado de autenticación ha cambiado
+      debugPrint('[DEBUG] AuthWrapper: App volvió al primer plano, verificando estado de autenticación');
+      _checkAuthState();
+    }
+  }
+  
+  // Método para verificar el estado de autenticación actual
+  Future<void> _checkAuthState() async {
+    final authService = Provider.of<AuthService>(context, listen: false);
+    
+    try {
+      // Verificar si hay un token almacenado y si es válido
+      final hasToken = await authService.hasStoredToken();
+      debugPrint('[DEBUG] AuthWrapper: Token disponible: ${hasToken ? "Sí" : "No"}');
+      
+      if (hasToken) {
+        // Si hay token, verificar su validez
+        debugPrint('[DEBUG] AuthWrapper: Verificando validez del token');
+        final isValid = await authService.verifyToken();
+        
+        if (isValid) {
+          // Si el token es válido, asegurar que estamos marcados como autenticados
+          debugPrint('[DEBUG] AuthWrapper: Token válido, actualizando estado de autenticación');
+          if (!authService.isAuthenticated.value) {
+            authService.isAuthenticated.value = true;
+            authService.notifyListeners();
+          }
+        } else {
+          // Si el token no es válido, limpiar estado
+          debugPrint('[DEBUG] AuthWrapper: Token no válido, limpiando estado');
+          await authService.forceCleanAuthState();
+        }
+      }
+    } catch (e) {
+      debugPrint('[DEBUG] AuthWrapper: Error al verificar estado de autenticación: $e');
+    } finally {
+      // Marcar que la verificación inicial se completó
+      if (!_initialCheckDone && mounted) {
+        setState(() {
+          _initialCheckDone = true;
+        });
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     // Obtenemos el estado de autenticación
-    final authService = Provider.of<AuthService>(context);
+    final authService = Provider.of<AuthService>(context, listen: false);
     
-    // Escuchamos los cambios en el estado de autenticación
+    // Si no hemos completado la verificación inicial, mostrar loader
+    if (!_initialCheckDone) {
+      return const Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+    
     return ValueListenableBuilder<bool>(
-      valueListenable: authService.isAuthenticated,
-      builder: (context, isAuthenticated, _) {
-        // Si está autenticado, mostramos la aplicación principal
-        if (isAuthenticated) {
-          return AppScaffold();
-        }
-        // Si no está autenticado, mostramos la pantalla de login
-        return const LoginScreen();
-      },
+      valueListenable: authService.isLoading,
+      builder: (context, isLoading, _) {
+        return ValueListenableBuilder<bool>(
+          valueListenable: authService.isAuthenticated,
+          builder: (context, isAuthenticated, _) {
+            // Si está cargando, mostrar un indicador de carga
+            if (isLoading) {
+              return const Scaffold(
+                body: Center(
+                  child: CircularProgressIndicator(),
+                ),
+              );
+            }
+            
+            // Si está autenticado, mostramos la aplicación principal
+            if (isAuthenticated) {
+              debugPrint('[DEBUG] AuthWrapper: Usuario autenticado, mostrando AppScaffold');
+              return const AppScaffold();
+            }
+            
+            // Si no está autenticado, mostramos la pantalla de login
+            debugPrint('[DEBUG] AuthWrapper: Usuario no autenticado, mostrando LoginScreen');
+            return const LoginScreen();
+          },
+        );
+      }
     );
   }
 }
