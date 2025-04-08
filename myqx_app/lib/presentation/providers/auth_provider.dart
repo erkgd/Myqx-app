@@ -216,54 +216,56 @@ class AuthService extends ChangeNotifier {
       }
 
       // 4. Enviar datos al BFF
-      try {
-        final response = await _apiClient.post(
-          '/auth/spotify',
-          body: {
-            'spotifyToken': spotifyToken, // Cambiado de spotify_token a spotifyToken
-            'username': spotifyUser.displayName,
-            'profilePhoto': spotifyUser.imageUrl, // Cambiado de profile_image a profilePhoto
-            'spotifyId': spotifyUser.id, // Añadido el ID de Spotify
-          },
-          requiresAuth: false,
-        );
+      // Log para depurar los datos enviados al BFF
+      debugPrint('[DEBUG] Enviando datos al BFF: spotifyToken=$spotifyToken, username=${spotifyUser.displayName}, profilePhoto=${spotifyUser.imageUrl}, spotifyId=${spotifyUser.id}');
 
-        // 5. Procesar respuesta del BFF
-        if (response['token'] != null) {
-          // Guardar el nuevo token
-          await _secureStorage.saveToken(response['token']);
+      final response = await _apiClient.post(
+        '/auth/spotify',
+        body: {
+          'spotifyToken': spotifyToken, // Cambiado de spotify_token a spotifyToken
+          'username': spotifyUser.displayName,
+          'profilePhoto': spotifyUser.imageUrl, // Cambiado de profile_image a profilePhoto
+          'spotifyId': spotifyUser.id, // Añadido el ID de Spotify
+          'email': spotifyUser.email
+        },
+        requiresAuth: false,
+      );
 
-          if (response['user'] != null) {
-            try {
-              final user = User.fromMap(response['user']);
-              await _secureStorage.saveUserData(user.toJson());
-              currentUser.value = user;
-              debugPrint('[DEBUG] Datos de usuario guardados correctamente');
-            } catch (e) {
-              debugPrint('[DEBUG] Error al guardar datos de usuario: $e');
-              // Continuar porque tenemos el token, que es lo crítico
-            }
+      // Log para depurar la respuesta del BFF
+      debugPrint('[DEBUG] Respuesta del BFF: ${response.toString()}');
+      
+      // 5. Procesar respuesta del BFF
+      if (response['token'] != null) {
+        // Guardar el nuevo token
+        await _secureStorage.saveToken(response['token']);
+
+        if (response['user'] != null) {
+          try {
+            final user = User.fromMap(response['user']);
+            await _secureStorage.saveUserData(user.toJson());
+            currentUser.value = user;
+            debugPrint('[DEBUG] Datos de usuario guardados correctamente');
+          } catch (e) {
+            debugPrint('[DEBUG] Error al guardar datos de usuario: $e');
+            // Continuar porque tenemos el token, que es lo crítico
           }
-
-          // Actualizar estado de autenticación explícitamente
-          isAuthenticated.value = true;
-
-          // Forzar notificación a todos los listeners inmediatamente
-          notifyListeners();
-
-          debugPrint('[DEBUG] Login exitoso');
-          return true;
-        } else {
-          errorMessage.value = 'Respuesta del servidor inválida';
-          return false;
         }
-      } catch (e) {
-        errorMessage.value =
-            'Error al procesar autenticación con el servidor: ${e.toString()}';
+
+        // Actualizar estado de autenticación explícitamente
+        isAuthenticated.value = true;
+
+        // Forzar notificación a todos los listeners inmediatamente
+        notifyListeners();
+
+        debugPrint('[DEBUG] Login exitoso');
+        return true;
+      } else {
+        errorMessage.value = 'Respuesta del servidor inválida';
         return false;
       }
     } catch (e) {
-      errorMessage.value = 'Error en el proceso de login: ${e.toString()}';
+      errorMessage.value =
+          'Error al procesar autenticación con el servidor: ${e.toString()}';
       return false;
     } finally {
       isLoading.value = false;
