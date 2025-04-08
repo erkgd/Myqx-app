@@ -1,22 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:myqx_app/core/constants/corporative_colors.dart';
 import 'package:myqx_app/core/services/spotify_profile_service.dart';
-import 'package:myqx_app/presentation/widgets/profile/settings_button.dart';
-import 'package:myqx_app/presentation/widgets/profile/logout_button.dart';
 import 'package:myqx_app/presentation/widgets/profile/star_of_the_day.dart';
-import 'package:myqx_app/presentation/widgets/profile/top_artists_chart.dart';
 import 'package:myqx_app/presentation/widgets/profile/top_five_albums.dart';
 import 'package:myqx_app/presentation/widgets/profile/user_compatibility.dart';
 import 'package:myqx_app/presentation/widgets/spotify/open_spotify_button.dart';
 
-class ProfileScreen extends StatefulWidget {
-  const ProfileScreen({super.key});
+class UnaffiliatedProfileScreen extends StatefulWidget {
+  const UnaffiliatedProfileScreen({super.key});
 
   @override
-  State<ProfileScreen> createState() => _ProfileScreenState();
+  State<UnaffiliatedProfileScreen> createState() => _UnaffiliatedProfileScreenState();
 }
 
-class _ProfileScreenState extends State<ProfileScreen> with WidgetsBindingObserver {
+class _UnaffiliatedProfileScreenState extends State<UnaffiliatedProfileScreen> with WidgetsBindingObserver {
   bool _isFollowing = false;
   bool _isLoading = true;
   late final SpotifyProfileService _profileService;
@@ -72,15 +69,6 @@ class _ProfileScreenState extends State<ProfileScreen> with WidgetsBindingObserv
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.transparent,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        automaticallyImplyLeading: false,
-        leading: const SettingsButton(),
-        actions: const [
-          LogoutButton(),
-        ],
-      ),
       body: _isLoading ? _buildLoadingView() : _buildProfileContent(),
     );
   }
@@ -178,7 +166,8 @@ class _ProfileScreenState extends State<ProfileScreen> with WidgetsBindingObserv
             ),
             
             const SizedBox(height: 15),
-              // Username and follow button
+            
+            // Username and follow button
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.center,
@@ -194,6 +183,46 @@ class _ProfileScreenState extends State<ProfileScreen> with WidgetsBindingObserv
                 ),
                 
                 const SizedBox(width: 16),
+                
+                // Follow button
+                SizedBox(
+                  width: 90,
+                  height: 30,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      setState(() {
+                        _isFollowing = !_isFollowing;
+                      });
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _isFollowing 
+                          ? Colors.black 
+                          : CorporativeColors.whiteColor,
+                      foregroundColor: _isFollowing 
+                          ? CorporativeColors.whiteColor 
+                          : Colors.black,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20),
+                        side: BorderSide(
+                          color: _isFollowing 
+                              ? CorporativeColors.mainColor
+                              : Colors.transparent,
+                          width: 1,
+                        ),
+                      ),
+                      padding: EdgeInsets.zero,
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                    child: Text(
+                      _isFollowing ? 'Unfollow' : 'Follow',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
               ],
             ),
             
@@ -207,7 +236,8 @@ class _ProfileScreenState extends State<ProfileScreen> with WidgetsBindingObserv
             ),
             
             const SizedBox(height: 15),
-              // Star of the Day and Top Artists Chart
+            
+            // Star of the Day and Compatibility
             SizedBox(
               height: 255,
               child: IntrinsicHeight(
@@ -215,7 +245,6 @@ class _ProfileScreenState extends State<ProfileScreen> with WidgetsBindingObserv
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    // Star of the Day - Left side
                     Expanded(
                       flex: 7,
                       child: starTrack != null ? StarOfTheDay(
@@ -230,28 +259,20 @@ class _ProfileScreenState extends State<ProfileScreen> with WidgetsBindingObserv
                         ),
                       ),
                     ),
-                    
-                    // Spacer between components
-                    const SizedBox(width: 10),
-                    
-                    // Top Artists Chart - Right side
+                    const SizedBox(width: 5),
                     Expanded(
-                      flex: 6,
-                      child: _profileService.topArtists.isNotEmpty 
-                        ? TopArtistsChart(artists: _profileService.topArtists.take(3).toList())
-                        : const Center(
-                            child: Text(
-                              "No artist data available",
-                              style: TextStyle(color: Colors.white),
-                            ),
-                          ),
+                      flex: 5,
+                      child: UserCompatibility(
+                        compatibilityPercentage: _profileService.calculateCompatibility(),
+                      ),
                     ),
                   ],
                 ),
               ),
             ),
+            
             const SizedBox(height: 20),
-
+            
             // Top 5 albums section with actual data
             topAlbums.isNotEmpty ? TopFiveAlbums(
               albums: topAlbums,
