@@ -328,15 +328,15 @@ class SpotifyProfileService with ChangeNotifier {
       debugPrint("[ERROR] Failed to load top albums: $e");
       rethrow;
     }
-  }
-    // Load user's top artists from Spotify API
+  }    // Load user's top artists from Spotify API (month range)
   Future<void> _loadTopArtists() async {
     try {
       final accessToken = await _authService.getAccessToken();
       if (accessToken == null) throw Exception('Not authenticated');
       
+      // Usando short_term para obtener datos del último mes (4 semanas aproximadamente)
       final response = await http.get(
-        Uri.parse('${SpotifyConstants.apiUrl}/me/top/artists?limit=10&time_range=medium_term'),
+        Uri.parse('${SpotifyConstants.apiUrl}/me/top/artists?time_range=short_term'),
         headers: {'Authorization': 'Bearer $accessToken'},
       );
       

@@ -21,13 +21,12 @@ class TopArtistsChart extends StatelessWidget {
           style: TextStyle(color: Colors.white),
         ),
       );
-    }
-
-    // Tomar solo los 3 primeros artistas
+    }    // Tomar solo los 3 primeros artistas
     final topThree = artists.length > 3 ? artists.sublist(0, 3) : artists;
     
     return Container(
-      padding: const EdgeInsets.all(10),
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
         color: CorporativeColors.blackColor,
         borderRadius: BorderRadius.circular(15),
@@ -37,19 +36,22 @@ class TopArtistsChart extends StatelessWidget {
         ),
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          const Text(
-            'Top Artists',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: CorporativeColors.whiteColor,
-            ),
-          ),
-          const SizedBox(height: 10),          Expanded(
+          const Center(
+            child: Text(
+              'Top Artists',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: CorporativeColors.whiteColor,
+              ),
+            ),          ),
+          const SizedBox(height: 12),
+          Expanded(
             child: LayoutBuilder(
-              builder: (context, constraints) {                // Encontrar el artista con más escuchas del usuario para escalar el gráfico
+              builder: (context, constraints) {
+                // Encontrar el artista con más escuchas del usuario para escalar el gráfico
                 final maxListeningCount = topThree.map((a) => a.userListeningCount).reduce(
                   (max, value) => value > max ? value : max);
                 
@@ -74,19 +76,20 @@ class TopArtistsChart extends StatelessWidget {
                     
                     // Para depuración - imprimir los valores
                     debugPrint("Artist: ${artist.name}, Index: $index, Width: $barWidth");
-                    
-                    return Container(
+                      return SizedBox(
                       height: 50,  // Altura fija para cada elemento del artista
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                        crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
                           Row(
+                            mainAxisAlignment: MainAxisAlignment.start,
                             children: [
                               // Imagen del artista
                               Container(
                                 width: 25,
                                 height: 25,
+                                margin: const EdgeInsets.only(left: 2),
                                 decoration: BoxDecoration(
                                   shape: BoxShape.circle,
                                   image: artist.imageUrl != null ? DecorationImage(
@@ -117,32 +120,36 @@ class TopArtistsChart extends StatelessWidget {
                           ),
                           const SizedBox(height: 5),
                           // Barra
-                          Stack(
-                            children: [
-                              // Fondo de la barra
-                              Container(
-                                width: constraints.maxWidth,
-                                height: 15,
-                                decoration: BoxDecoration(
-                                  color: Colors.grey[800],
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                              ),
-                              // Barra de progreso
-                              Container(
-                                width: barWidth,
-                                height: 15,
-                                decoration: BoxDecoration(
-                                  gradient: const LinearGradient(
-                                    colors: [
-                                      CorporativeColors.gradientColorBottom,
-                                      CorporativeColors.mainColor,
-                                    ],
+                          Container(
+                            width: constraints.maxWidth,
+                            padding: const EdgeInsets.symmetric(horizontal: 2),
+                            child: Stack(
+                              children: [
+                                // Fondo de la barra
+                                Container(
+                                  width: constraints.maxWidth,
+                                  height: 15,
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey[800],
+                                    borderRadius: BorderRadius.circular(10),
                                   ),
-                                  borderRadius: BorderRadius.circular(10),
                                 ),
-                              ),
-                            ],
+                                // Barra de progreso
+                                Container(
+                                  width: barWidth,
+                                  height: 15,
+                                  decoration: BoxDecoration(
+                                    gradient: const LinearGradient(
+                                      colors: [
+                                        CorporativeColors.gradientColorBottom,
+                                        CorporativeColors.mainColor,
+                                      ],
+                                    ),
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ],
                       ),
