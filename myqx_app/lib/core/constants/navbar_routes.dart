@@ -4,7 +4,9 @@ import 'package:myqx_app/presentation/screens/album_screen.dart';
 import 'package:myqx_app/presentation/screens/broadcast_screen.dart';
 import 'package:myqx_app/presentation/screens/profile_screen.dart';
 import 'package:myqx_app/presentation/screens/search_screen.dart';
+import 'package:myqx_app/presentation/screens/graph_screen.dart';
 import 'package:myqx_app/presentation/providers/navigation_provider.dart';
+
 
 class NavbarRoutes {
   // Nombres de rutas para facilitar la navegación
@@ -30,7 +32,7 @@ class NavbarRoutes {
     return [
       const ProfileScreen(),     // índice 0
       const BroadcastScreen(),   // índice 1
-      const ProfileScreen(),     // índice 2
+      const GraphScreen(),     // índice 2
       const SearchScreen(),      // índice 3
       
       // AlbumScreen con parámetros dinámicos del provider
