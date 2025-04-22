@@ -68,7 +68,7 @@ class UserGraphService {
 
         // Log para depurar la URL
         debugPrint('[DEBUG] Fetching following network for userId: $userId');
-        final url = '/$userId/following_network/';
+        final url = '/users/$userId/following_network';
         debugPrint('[DEBUG] URL: $url');
 
         // Usar el ID del usuario en la URL
@@ -93,7 +93,7 @@ class UserGraphService {
 
         // Log para depurar la URL y los datos
         debugPrint('[DEBUG] Sending data to BFF for userId: $userId');
-        final url = '/$userId/following_network/';
+        final url = '/users/$userId/following-network';
         debugPrint('[DEBUG] URL: $url');
         debugPrint('[DEBUG] Data: ${data.toString()}');
 

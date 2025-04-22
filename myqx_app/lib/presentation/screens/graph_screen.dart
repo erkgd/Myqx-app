@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:graphview/GraphView.dart';
 import 'package:myqx_app/core/constants/corporative_colors.dart';
 import 'package:myqx_app/core/services/user_graph_service.dart';
+import 'package:myqx_app/core/storage/secure_storage.dart';
 import 'package:myqx_app/presentation/widgets/spotify/user_circle.dart';
+import 'package:myqx_app/presentation/widgets/general/user_header.dart';
 
 class GraphScreen extends StatefulWidget {
   const GraphScreen({super.key});
@@ -26,6 +28,7 @@ class _GraphScreenState extends State<GraphScreen> {
   final UserGraphService _userGraphService = UserGraphService();
   // Instancia del controlador del grafo
   final Graph graph = Graph()..isTree = false;
+  String? _currentUserId;
 
   bool _isLoading = true;
   String? _errorMessage;
@@ -33,15 +36,35 @@ class _GraphScreenState extends State<GraphScreen> {
   @override
   void initState() {
     super.initState();
+    _loadCurrentUserId();
     _fetchAndBuildGraph();
-  }  Future<void> _fetchAndBuildGraph() async {
+  }
+  
+  // Cargar el ID del usuario actual
+  Future<void> _loadCurrentUserId() async {
+    try {
+      final secureStorage = SecureStorage();
+      _currentUserId = await secureStorage.getUserId();
+      debugPrint('[DEBUG] Current user ID: $_currentUserId');
+    } catch (e) {
+      debugPrint('[DEBUG] Error loading current user ID: $e');
+    }
+  }
+
+  Future<void> _fetchAndBuildGraph() async {
     // Verificar si el widget aún está montado antes de actualizar el estado
     if (!mounted) return;
     
     setState(() {
       _isLoading = true;
       _errorMessage = null;
-    });    try {
+    });
+    
+    // Limpiamos el grafo existente para evitar duplicados
+    graph.nodes.clear();
+    graph.edges.clear();
+    
+    try {
       // Verificar si hay datos en caché primero
       if (_GraphCache.cachedNetworkData != null) {
         debugPrint('Usando datos del grafo desde caché');
@@ -120,19 +143,36 @@ class _GraphScreenState extends State<GraphScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.transparent,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        title: const Text(
-          'Network Graph',
-          style: TextStyle(
+      appBar: const UserHeader(),
+      floatingActionButton: Container(
+        width: 50,
+        height: 50,
+        decoration: BoxDecoration(
+          color: Colors.black,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
             color: CorporativeColors.whiteColor,
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
+            width: 1.0,
           ),
         ),
-        centerTitle: true,
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(10),
+            onTap: () {
+              // Limpiar caché y recargar datos
+              _GraphCache.cachedNetworkData = null;
+              _fetchAndBuildGraph();
+            },
+            child: const Icon(
+              Icons.refresh,
+              color: CorporativeColors.whiteColor,
+              size: 24,
+            ),
+          ),
+        ),
       ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
       body: SafeArea(
         child: _isLoading
             ? const Center(
@@ -147,20 +187,7 @@ class _GraphScreenState extends State<GraphScreen> {
                   )
                 : Column(
                     children: [
-                      const SizedBox(height: 20),
-                      const Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 16.0),
-                        child: Text(
-                          'Your Music Network',
-                          style: TextStyle(
-                            color: CorporativeColors.whiteColor,
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-                      const SizedBox(height: 10),                      Expanded(
+                      const SizedBox(height: 20),                      const SizedBox(height: 10),Expanded(
                         child: InteractiveViewer(
                           constrained: false,
                           boundaryMargin: const EdgeInsets.all(100),
@@ -174,11 +201,10 @@ class _GraphScreenState extends State<GraphScreen> {
                               ..color = Colors.white
                               ..strokeWidth = 2.0
                               ..style = PaintingStyle.stroke,
-                            builder: (Node node) {
-                              // Verificar si este nodo es el usuario actual (ejemplo con ID "31")
+                            builder: (Node node) {                              // Verificar si este nodo es el usuario actual
                               final nodeId = node.key?.value?.toString() ?? "";
-                              // Consideramos que el nodo con ID 31 es el usuario actual (solo ejemplo)
-                              final isCurrentUser = nodeId == "31";
+                              // Comparar con el ID del usuario actual cargado desde SecureStorage
+                              final isCurrentUser = _currentUserId != null && nodeId == _currentUserId;
                               
                               return nodeWidgetWithUserCircle(
                                 isCurrentUser ? "You" : "User $nodeId", 

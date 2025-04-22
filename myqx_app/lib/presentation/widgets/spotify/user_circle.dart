@@ -8,12 +8,12 @@ class UserCircle extends StatelessWidget {
   final double fontSize;
   
   const UserCircle({
-    Key? key,
+    super.key,
     required this.username,
     required this.imageUrl,
     this.imageSize = 30.0,
     this.fontSize = 14.0,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -30,19 +30,20 @@ class UserCircle extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 8.0),
-        // Imagen de perfil circular
-        Container(
+        // Imagen de perfil circular - Garantizada forma circular
+        SizedBox(
           width: imageSize,
           height: imageSize,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            border: Border.all(
-              color: CorporativeColors.mainColor,
-              width: 2.0,
+          child: Container(
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: CorporativeColors.mainColor,
+                width: 2.0,
+              ),
             ),
-          ),
-          child: ClipOval(
-            child: imageUrl.isNotEmpty 
+            child: ClipOval(
+              child: imageUrl.isNotEmpty 
                 ? Image.network(
                     imageUrl,
                     fit: BoxFit.cover,
@@ -67,6 +68,7 @@ class UserCircle extends StatelessWidget {
                       ),
                     ),
                   ),
+            ),
           ),
         ),
       ],

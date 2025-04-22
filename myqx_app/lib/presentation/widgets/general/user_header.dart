@@ -11,16 +11,17 @@ class UserHeader extends StatefulWidget implements PreferredSizeWidget {
   final String? imageUrl;
   final String? username;
   final bool showCircle; 
+  final double imageSize;
 
   const UserHeader({
     super.key, 
     this.imageUrl,
     this.username,
     this.showCircle = false,
+    this.imageSize = 36.0,
   });
-  
-  @override
-  Size get preferredSize => const Size.fromHeight(80.0);
+    @override
+  Size get preferredSize => const Size.fromHeight(100.0);
 
   @override
   State<UserHeader> createState() => _UserHeaderState();
@@ -118,19 +119,20 @@ class _UserHeaderState extends State<UserHeader> {
             title: const SizedBox(),
             actions: [
               Padding(
-                padding: const EdgeInsets.only(right: 12.0, top: 8.0),
-                child: GestureDetector(
+                padding: const EdgeInsets.only(right: 12.0, top: 8.0),                child: GestureDetector(
                   onTap: () {
                     final navProvider = Provider.of<NavigationProvider>(context, listen: false);
                     navProvider.setCurrentIndex(0);
                   },
                   child: _isLoading
-                      ? _buildLoadingAvatar()
-                      : UserCircle(
-                          username: displayName,
-                          imageUrl: userImageUrl ?? '',
-                          imageSize: 36.0,
-                          fontSize: 14.0,
+                      ? _buildLoadingAvatar()                      : SizedBox(
+                          height: widget.imageSize, // Usar el tamaño pasado como parámetro
+                          child: UserCircle(
+                            username: displayName,
+                            imageUrl: userImageUrl ?? '',
+                            imageSize: widget.imageSize,
+                            fontSize: widget.imageSize > 40 ? 16.0 : 14.0, // Ajuste de fuente según tamaño
+                          ),
                         ),
                 ),
               ),
