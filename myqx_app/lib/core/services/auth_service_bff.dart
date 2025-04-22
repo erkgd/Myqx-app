@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:myqx_app/core/http/api_client.dart';
 import 'package:myqx_app/core/storage/secure_storage.dart';
@@ -52,16 +53,17 @@ class AuthServiceBff {
         requiresAuth: false,
       );
       
-      // Verificamos que la respuesta tenga la estructura esperada
       if (response['token'] != null && response['user'] != null) {
         final authResponse = AuthResponse.fromMap(response);
         
-        // Guardamos los datos en almacenamiento seguro
+        // Guardar token y refresh token existentes
         await _secureStorage.saveToken(authResponse.token);
         if (authResponse.refreshToken != null) {
           await _secureStorage.saveRefreshToken(authResponse.refreshToken!);
         }
-        await _secureStorage.saveUserId(authResponse.user.id ?? '');
+        // Guardar ID de usuario en SecureStorage
+        await _secureStorage.saveUserId(authResponse.user.id);
+        // Guardar datos completos de usuario
         await _secureStorage.saveUserData(json.encode(authResponse.user.toMap()));
         
         // Actualizamos el estado de autenticación
@@ -102,36 +104,79 @@ class AuthServiceBff {
       throw ApiException('Error al cerrar sesión: ${e.toString()}');
     }
   }
-
   // Método para verificar si el token actual es válido
   Future<bool> verifyToken() async {
     try {
-      final response = await _apiClient.post('/auth/verify');
-      return response['valid'] == true;
+      debugPrint('Verificando validez del token...');
+      final response = await _apiClient.post('/auth/token/verify/');
+      debugPrint('Respuesta de verificación: $response');
+      return response['valid'] == true || response['code'] != 'token_not_valid';
     } catch (e) {
+      debugPrint('Error al verificar token: ${e.toString()}');
       // Si hay algún error, consideramos que el token no es válido
       return false;
     }
-  }
-
-  // Método para actualizar el token usando refresh token
+  }  // Método para actualizar el token usando refresh token
   Future<bool> refreshToken() async {
     try {
+      debugPrint('===== INTENTANDO REFRESCAR TOKEN =====');
+      
+      // Obtener el token actual y el refresh token
+      final currentToken = await _secureStorage.getToken();
       final refreshToken = await _secureStorage.getRefreshToken();
-      if (refreshToken == null) return false;
       
-      final response = await _apiClient.post(
-        '/auth/token/refresh',
-        body: {'refresh': refreshToken},
-        requiresAuth: false,
-      );
+      debugPrint('Token actual:');
+      debugPrint('Refresh token:');
       
-      if (response['token'] != null) {
-        await _secureStorage.saveToken(response['token']);
-        return true;
+      if (refreshToken == null) {
+        debugPrint('ERROR: No se encontró refresh token guardado');
+        return false;
       }
-      return false;
+      
+      try {
+        // Intenta hacer la petición para refrescar el token
+        debugPrint('Enviando petición refresh a: /auth/token/refresh');
+        debugPrint('Cuerpo de la petición:');
+        
+        final response = await _apiClient.post(
+          '/auth/token/refresh',
+          body: {'refresh': refreshToken},
+          requiresAuth: false,
+        );
+        
+        debugPrint('Respuesta del servidor: ${response.toString()}');
+        
+        if (response['token'] != null) {
+          final newToken = response['token'];
+          await _secureStorage.saveToken(newToken);
+          
+          debugPrint('Nuevo token recibido: ...');
+          
+          // Si hay un nuevo refresh token, también lo guardamos
+          if (response['refresh_token'] != null) {
+            final newRefreshToken = response['refresh_token'];
+            await _secureStorage.saveRefreshToken(newRefreshToken);
+            debugPrint('Nuevo refresh token guardado');
+          } else {
+            debugPrint('No se recibió nuevo refresh token, manteniendo el actual');
+          }
+          
+          debugPrint('Token refrescado exitosamente');
+          debugPrint('===================================');
+          return true;
+        } else {
+          debugPrint('ERROR: La respuesta no contiene un nuevo token');
+          debugPrint('===================================');
+          return false;
+        }
+      } catch (e) {
+        debugPrint('ERROR al hacer la petición de refresh: ${e.toString()}');
+        debugPrint('===================================');
+        return false;
+      }
     } catch (e) {
+      debugPrint('ERROR general al refrescar token: ${e.toString()}');
+      debugPrint('===================================');
       return false;
     }
   }

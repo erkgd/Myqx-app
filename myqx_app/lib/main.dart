@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:myqx_app/core/constants/corporative_colors.dart';
-import 'package:myqx_app/core/services/spotify_auth_service.dart';
 import 'package:myqx_app/presentation/providers/navigation_provider.dart';
 import 'package:myqx_app/presentation/providers/auth_provider.dart';
 import 'package:myqx_app/presentation/providers/spotify_auth_provider.dart';

@@ -237,12 +237,12 @@ class AuthService extends ChangeNotifier {
       // 5. Procesar respuesta del BFF
       if (response['token'] != null) {
         // Guardar el nuevo token
-        await _secureStorage.saveToken(response['token']);
-
+        await _secureStorage.saveToken(response['token']);        
         if (response['user'] != null) {
           try {
-            final user = User.fromMap(response['user']);
+            final user = User.fromSpotifyBff(response['user']);
             await _secureStorage.saveUserData(user.toJson());
+            await _secureStorage.saveUserId(user.id); // Guardar el ID de usuario
             currentUser.value = user;
             debugPrint('[DEBUG] Datos de usuario guardados correctamente');
           } catch (e) {
