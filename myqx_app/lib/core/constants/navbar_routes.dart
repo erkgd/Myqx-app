@@ -6,6 +6,7 @@ import 'package:myqx_app/presentation/screens/profile_screen.dart';
 import 'package:myqx_app/presentation/screens/search_screen.dart';
 import 'package:myqx_app/presentation/screens/graph_screen.dart';
 import 'package:myqx_app/presentation/providers/navigation_provider.dart';
+import 'package:myqx_app/presentation/screens/unaffiliated_profile_screen.dart';
 
 
 class NavbarRoutes {
@@ -14,6 +15,7 @@ class NavbarRoutes {
   static const String broadcast = '/broadcast';
   static const String search = '/search';
   static const String album = '/album';
+  static const String unaffiliatedProfile = '/unaffiliated-profile';
   
   // Mapeo de nombres de ruta a índices
   static const Map<String, int> routeIndices = {
@@ -21,7 +23,8 @@ class NavbarRoutes {
     '/broadcast': 1,
     '/profile': 2,
     '/search': 3,
-    '/album': 4
+    '/album': 4,
+    '/unaffiliated-profile': 5
   };
   
   // Método para obtener las páginas con parámetros actualizados
@@ -32,7 +35,7 @@ class NavbarRoutes {
     return [
       const ProfileScreen(),     // índice 0
       const BroadcastScreen(),   // índice 1
-      const GraphScreen(),     // índice 2
+      const GraphScreen(),       // índice 2
       const SearchScreen(),      // índice 3
       
       // AlbumScreen con parámetros dinámicos del provider
@@ -55,6 +58,16 @@ class NavbarRoutes {
           : const Scaffold(
               body: Center(
                 child: Text('No album selected', 
+                  style: TextStyle(color: Colors.white)),
+              ),
+            ),
+            
+      // UnaffiliatedProfileScreen con ID del usuario desde el provider
+      navProvider.currentProfileUserId != null && navProvider.currentProfileUserId!.isNotEmpty
+          ? UnaffiliatedProfileScreen(userId: navProvider.currentProfileUserId!)
+          : const Scaffold(
+              body: Center(
+                child: Text('No user profile selected', 
                   style: TextStyle(color: Colors.white)),
               ),
             )

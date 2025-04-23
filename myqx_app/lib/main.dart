@@ -6,6 +6,7 @@ import 'package:myqx_app/presentation/providers/spotify_auth_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:myqx_app/presentation/widgets/general/app_scaffold.dart';
 import 'package:myqx_app/presentation/screens/login_screen.dart';
+import 'package:myqx_app/presentation/screens/unaffiliated_profile_screen.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -44,12 +45,17 @@ class MyApp extends StatelessWidget {
           bodyMedium: TextStyle(fontSize: 12, fontWeight: FontWeight.normal),
         ),
       ),
+      // Definición de rutas nombradas
+      routes: {
+        '/unaffiliated-profile': (context) => UnaffiliatedProfileScreen(
+          userId: ModalRoute.of(context)!.settings.arguments as String,
+        ),
+      },
       home: const AuthWrapper(),
     );
   }
 }
 
-/// Widget que determina qué pantalla mostrar según el estado de autenticación
 class AuthWrapper extends StatefulWidget {
   const AuthWrapper({Key? key}) : super(key: key);
 

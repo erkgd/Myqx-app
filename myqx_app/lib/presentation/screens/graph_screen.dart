@@ -5,6 +5,9 @@ import 'package:myqx_app/core/services/user_graph_service.dart';
 import 'package:myqx_app/core/storage/secure_storage.dart';
 import 'package:myqx_app/presentation/widgets/spotify/user_circle.dart';
 import 'package:myqx_app/presentation/widgets/general/user_header.dart';
+import 'package:myqx_app/presentation/screens/unaffiliated_profile_screen.dart';
+import 'package:myqx_app/presentation/providers/navigation_provider.dart';
+import 'package:provider/provider.dart';
 
 class GraphScreen extends StatefulWidget {
   const GraphScreen({super.key});
@@ -29,6 +32,8 @@ class _GraphScreenState extends State<GraphScreen> {
   // Instancia del controlador del grafo
   final Graph graph = Graph()..isTree = false;
   String? _currentUserId;
+  // Almacena información de usuarios por ID
+  Map<String, Map<String, dynamic>> _userData = {};
 
   bool _isLoading = true;
   String? _errorMessage;
@@ -106,6 +111,8 @@ class _GraphScreenState extends State<GraphScreen> {
   void _buildGraph(Map<String, dynamic> networkData) {
     // Mapa para almacenar nodos por ID para evitar duplicados
     final Map<dynamic, Node> nodes = {};
+    // Mapa para almacenar datos completos de usuarios por ID
+    final Map<String, Map<String, dynamic>> userData = {};
     
     // Añadir nodos al grafo
     if (networkData['following_network'] != null) {
@@ -113,6 +120,24 @@ class _GraphScreenState extends State<GraphScreen> {
         final followerId = connection['followerId'];
         final followedId = connection['followedId'];
         final isRecommended = connection['isRecommended'] ?? false;
+        
+        // Almacenar datos del seguidor si no existen
+        if (!userData.containsKey(followerId)) {
+          userData[followerId.toString()] = {
+            'username': connection['followerUsername'] ?? '',
+            'profileImage': connection['followerProfileImage'] ?? '',
+            'spotifyId': connection['followerSpotifyId'] ?? '',
+          };
+        }
+        
+        // Almacenar datos del seguido si no existen
+        if (!userData.containsKey(followedId)) {
+          userData[followedId.toString()] = {
+            'username': connection['followedUsername'] ?? '',
+            'profileImage': connection['followedProfileImage'] ?? '',
+            'spotifyId': connection['followedSpotifyId'] ?? '',
+          };
+        }
         
         // Crear nodos si no existen
         if (!nodes.containsKey(followerId)) {
@@ -137,6 +162,11 @@ class _GraphScreenState extends State<GraphScreen> {
         }
       }
     }
+    
+    // Guardar datos de usuario en el estado
+    setState(() {
+      _userData = userData;
+    });
   }
 
   @override
@@ -187,28 +217,32 @@ class _GraphScreenState extends State<GraphScreen> {
                   )
                 : Column(
                     children: [
-                      const SizedBox(height: 20),                      const SizedBox(height: 10),Expanded(
+                      const SizedBox(height: 20),                      
+
+                      const SizedBox(height: 10),Expanded(
                         child: InteractiveViewer(
                           constrained: false,
                           boundaryMargin: const EdgeInsets.all(100),
                           minScale: 0.1,
-                          maxScale: 2.0,                          child: GraphView(
+                          maxScale: 2.0,                          
+
+                          child: GraphView(
                             graph: graph,                      
+
                             algorithm: FruchtermanReingoldAlgorithm(
                               iterations: 1000 // Solo parámetro básico disponible
                             ),
                             paint: Paint()
                               ..color = Colors.white
                               ..strokeWidth = 2.0
-                              ..style = PaintingStyle.stroke,
-                            builder: (Node node) {                              // Verificar si este nodo es el usuario actual
+                              ..style = PaintingStyle.stroke,                            builder: (Node node) {                              // Verificar si este nodo es el usuario actual
                               final nodeId = node.key?.value?.toString() ?? "";
                               // Comparar con el ID del usuario actual cargado desde SecureStorage
                               final isCurrentUser = _currentUserId != null && nodeId == _currentUserId;
                               
                               return nodeWidgetWithUserCircle(
+                                nodeId,
                                 isCurrentUser ? "You" : "User $nodeId", 
-                                "", // URL de imagen (vacío por ahora)
                                 isCurrentUser, // Ahora identificamos si es el usuario actual
                               );
                             },
@@ -220,11 +254,33 @@ class _GraphScreenState extends State<GraphScreen> {
       ),
     );
   }
-  
   // Widget para representar un nodo en el grafo mostrando solo la imagen del UserCircle
-  Widget nodeWidgetWithUserCircle(String username, String imageUrl, bool isCurrentUser) {
+  Widget nodeWidgetWithUserCircle(String nodeId, String defaultName, bool isCurrentUser) {
+    // Obtener datos del usuario desde _userData si existen
+    final userData = _userData[nodeId] ?? {};
+    final username = userData['username'] ?? defaultName;
+    final imageUrl = userData['profileImage'] ?? '';
+    
     // Retornamos solo la parte de imagen del UserCircle sin texto con tamaños aumentados
-    return Container(
+    return GestureDetector(
+      onTap: () {
+        // Si no es el usuario actual, navegar al perfil no afiliado
+        if (!isCurrentUser && nodeId.isNotEmpty) {
+          debugPrint('[DEBUG] Navegando al perfil no afiliado con ID: $nodeId');
+          // Usar NavigationProvider para gestionar la navegación
+          final navigationProvider = Provider.of<NavigationProvider>(context, listen: false);
+          navigationProvider.navigateToUserProfile(context, nodeId);
+        } else if (isCurrentUser) {
+          // Si es el usuario actual, no hacemos nada o mostramos un tooltip/snackbar
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Your profile!'),
+              duration: Duration(seconds: 1),
+            ),
+          );
+        }
+      },
+      child: Container(
       width: isCurrentUser ? 70.0 : 55.0, // Tamaños más grandes para los nodos
       height: isCurrentUser ? 70.0 : 55.0,
       decoration: BoxDecoration(
@@ -261,6 +317,7 @@ class _GraphScreenState extends State<GraphScreen> {
                 ),
               ),
       ),
+     ),
     );
   }
 }

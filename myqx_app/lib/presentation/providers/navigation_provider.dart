@@ -81,4 +81,32 @@ class NavigationProvider with ChangeNotifier {
     // Navegar a la página de álbum
     setCurrentIndex(4);
   }
+  
+  // PROPIEDADES Y MÉTODOS PARA PERFIL NO AFILIADO
+  // =============================================
+  
+  // ID del usuario cuyo perfil se está visualizando
+  String? currentProfileUserId;
+    // Método para navegar al perfil de un usuario no afiliado
+  void navigateToUserProfile(BuildContext context, String userId) {
+    // Validar el ID
+    if (userId.isEmpty) {
+      debugPrint('Error: navigateToUserProfile recibió un ID vacío');
+      return;
+    }
+    
+    // Almacenar el ID del usuario
+    currentProfileUserId = userId;
+    
+    // Registrar la acción para debugging
+    debugPrint('Navegando al perfil de usuario con ID: $userId');
+    
+    // Navegar al perfil usando el índice correcto (5 para unaffiliated-profile)
+    setCurrentIndex(5);
+  }
+  
+  // Limpiar datos del perfil actual
+  void clearCurrentProfile() {
+    currentProfileUserId = null;
+  }
 }

@@ -1,13 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:myqx_app/core/constants/corporative_colors.dart';
+import 'package:myqx_app/core/services/unaffiliated_profile_service.dart';
 import 'package:myqx_app/core/services/spotify_profile_service.dart';
 import 'package:myqx_app/presentation/widgets/profile/star_of_the_day.dart';
 import 'package:myqx_app/presentation/widgets/profile/top_five_albums.dart';
 import 'package:myqx_app/presentation/widgets/profile/user_compatibility.dart';
 import 'package:myqx_app/presentation/widgets/spotify/open_spotify_button.dart';
+import 'package:myqx_app/presentation/widgets/general/user_header.dart';
 
 class UnaffiliatedProfileScreen extends StatefulWidget {
-  const UnaffiliatedProfileScreen({super.key});
+  final String userId;
+
+  const UnaffiliatedProfileScreen({
+    super.key,
+    required this.userId,
+  });
 
   @override
   State<UnaffiliatedProfileScreen> createState() => _UnaffiliatedProfileScreenState();
@@ -16,12 +23,12 @@ class UnaffiliatedProfileScreen extends StatefulWidget {
 class _UnaffiliatedProfileScreenState extends State<UnaffiliatedProfileScreen> with WidgetsBindingObserver {
   bool _isFollowing = false;
   bool _isLoading = true;
-  late final SpotifyProfileService _profileService;
+  late final UnaffiliatedProfileService _profileService;
   
   @override
   void initState() {
     super.initState();
-    _profileService = SpotifyProfileService();
+    _profileService = UnaffiliatedProfileService();
     _loadProfileData();
     // Registrar el observador del ciclo de vida
     WidgetsBinding.instance.addObserver(this);
@@ -51,8 +58,8 @@ class _UnaffiliatedProfileScreenState extends State<UnaffiliatedProfileScreen> w
       });
     }
     try {
-      debugPrint("[DEBUG] Profile: Cargando datos del perfil");
-      await _profileService.initialize();
+      debugPrint("[DEBUG] Profile: Cargando datos del perfil para ID: ${widget.userId}");
+      await _profileService.loadProfileById(widget.userId);
       debugPrint("[DEBUG] Profile: Datos del perfil cargados exitosamente");
     } catch (e) {
       debugPrint("[ERROR] Failed to load profile data: $e");
@@ -64,11 +71,12 @@ class _UnaffiliatedProfileScreenState extends State<UnaffiliatedProfileScreen> w
       }
     }
   }
-  
   @override
   Widget build(BuildContext context) {
+    // Usamos un Scaffold con UserHeader y nos adaptamos al AppScaffold
     return Scaffold(
       backgroundColor: Colors.transparent,
+      appBar: const UserHeader(), // Añadimos el UserHeader como AppBar
       body: _isLoading ? _buildLoadingView() : _buildProfileContent(),
     );
   }
@@ -93,9 +101,8 @@ class _UnaffiliatedProfileScreenState extends State<UnaffiliatedProfileScreen> w
       ),
     );
   }
-  
-  Widget _buildProfileContent() {
-    final user = _profileService.currentUser;
+    Widget _buildProfileContent() {
+    final user = _profileService.profileUser;
     final starTrack = _profileService.starOfTheDay;
     final topAlbums = _profileService.topAlbums;
     
@@ -259,11 +266,10 @@ class _UnaffiliatedProfileScreenState extends State<UnaffiliatedProfileScreen> w
                         ),
                       ),
                     ),
-                    const SizedBox(width: 5),
-                    Expanded(
+                    const SizedBox(width: 5),                    Expanded(
                       flex: 5,
                       child: UserCompatibility(
-                        compatibilityPercentage: _profileService.calculateCompatibility(),
+                        compatibilityPercentage: _profileService.calculateCompatibility().toInt(),
                       ),
                     ),
                   ],
