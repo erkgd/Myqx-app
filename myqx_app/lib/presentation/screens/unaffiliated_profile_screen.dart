@@ -60,7 +60,17 @@ class _UnaffiliatedProfileScreenState extends State<UnaffiliatedProfileScreen> w
     try {
       debugPrint("[DEBUG] Profile: Cargando datos del perfil para ID: ${widget.userId}");
       await _profileService.loadProfileById(widget.userId);
+      
+      // Verificar si el usuario actual sigue al usuario del perfil
+      final isFollowing = await _profileService.isFollowing(widget.userId);
+      if (mounted) {
+        setState(() {
+          _isFollowing = isFollowing;
+        });
+      }
+      
       debugPrint("[DEBUG] Profile: Datos del perfil cargados exitosamente");
+      debugPrint("[DEBUG] Following status: ${_isFollowing ? 'Following' : 'Not following'}");
     } catch (e) {
       debugPrint("[ERROR] Failed to load profile data: $e");
     } finally {
@@ -71,6 +81,7 @@ class _UnaffiliatedProfileScreenState extends State<UnaffiliatedProfileScreen> w
       }
     }
   }
+  
   @override
   Widget build(BuildContext context) {
     // Usamos un Scaffold con UserHeader y nos adaptamos al AppScaffold
@@ -101,7 +112,8 @@ class _UnaffiliatedProfileScreenState extends State<UnaffiliatedProfileScreen> w
       ),
     );
   }
-    Widget _buildProfileContent() {
+    
+  Widget _buildProfileContent() {
     final user = _profileService.profileUser;
     final starTrack = _profileService.starOfTheDay;
     final topAlbums = _profileService.topAlbums;
@@ -190,16 +202,58 @@ class _UnaffiliatedProfileScreenState extends State<UnaffiliatedProfileScreen> w
                 ),
                 
                 const SizedBox(width: 16),
-                
-                // Follow button
+                  // Follow button
                 SizedBox(
                   width: 90,
                   height: 30,
                   child: ElevatedButton(
-                    onPressed: () {
+                    onPressed: () async {
+                      // Optimistic UI update - actualizamos la UI inmediatamente
+                      bool previousState = _isFollowing;
+                      
+                      // Actualizar el estado de inmediato para una respuesta instantánea
                       setState(() {
                         _isFollowing = !_isFollowing;
                       });
+                      
+                      bool success;
+                      if (previousState) {
+                        // Dejar de seguir al usuario (en segundo plano)
+                        success = await _profileService.unfollowUser(widget.userId);
+                        if (!success && mounted) {
+                          // Si falla, revertimos al estado anterior
+                          setState(() {
+                            _isFollowing = true;
+                          });
+                          
+                          // Mostramos mensaje de error
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Error al dejar de seguir a ${user.displayName}'),
+                              duration: const Duration(seconds: 2),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                        }
+                      } else {
+                        // Seguir al usuario (en segundo plano)
+                        success = await _profileService.followUser(widget.userId);
+                        if (!success && mounted) {
+                          // Si falla, revertimos al estado anterior
+                          setState(() {
+                            _isFollowing = false;
+                          });
+                          
+                          // Mostramos mensaje de error
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Error al seguir a ${user.displayName}'),
+                              duration: const Duration(seconds: 2),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                        }
+                      }
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: _isFollowing 
@@ -251,22 +305,36 @@ class _UnaffiliatedProfileScreenState extends State<UnaffiliatedProfileScreen> w
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Expanded(
+                  children: [                    Expanded(
                       flex: 7,
                       child: starTrack != null ? StarOfTheDay(
                         albumCoverUrl: starTrack.imageUrl ?? '',
                         artistName: starTrack.artistName,
                         songName: starTrack.name,
-                        spotifyUrl: starTrack.spotifyUrl,
-                      ) : const Center(
-                        child: Text(
-                          "No star track available",
-                          style: TextStyle(color: Colors.white),
+                        spotifyUrl: starTrack.spotifyUrl,                      ) : Container(
+                        decoration: BoxDecoration(
+                          color: Colors.black,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                            color: CorporativeColors.mainColor,
+                            width: 1,
+                          ),
+                        ),
+                        padding: const EdgeInsets.all(16),
+                        child: const Center(
+                          child: Text(
+                            "No star track available",
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
                         ),
                       ),
                     ),
-                    const SizedBox(width: 5),                    Expanded(
+                    const SizedBox(width: 5),
+                    Expanded(
                       flex: 5,
                       child: UserCompatibility(
                         compatibilityPercentage: _profileService.calculateCompatibility().toInt(),
@@ -278,15 +346,29 @@ class _UnaffiliatedProfileScreenState extends State<UnaffiliatedProfileScreen> w
             ),
             
             const SizedBox(height: 20),
-            
-            // Top 5 albums section with actual data
+              // Top 5 albums section with actual data
             topAlbums.isNotEmpty ? TopFiveAlbums(
               albums: topAlbums,
               title: 'Top Albums',
-            ) : const Center(
-              child: Text(
-                "No album data available",
-                style: TextStyle(color: Colors.white70),
+            ) : Container(
+              padding: const EdgeInsets.all(20),
+              margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),              decoration: BoxDecoration(
+                color: Colors.black,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: CorporativeColors.mainColor,
+                  width: 1,
+                ),
+              ),
+              child: const Center(
+                child: Text(
+                  "No album data available",
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
               ),
             ),
           ],

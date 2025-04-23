@@ -131,6 +131,67 @@ class UnaffiliatedProfileService extends ChangeNotifier {
     }
   }
   
+  // Método para comprobar si el usuario actual sigue al usuario del perfil
+  Future<bool> isFollowing(String userId) async {
+    try {
+      final response = await _apiClient.get('/users/following/status/$userId');
+      debugPrint('[DEBUG] Estado de seguimiento: ${response.toString()}');
+      return response['is_following'] ?? false;
+    } catch (e) {
+      debugPrint('[ERROR] Error al verificar si sigue al usuario: ${e.toString()}');
+      return false;
+    }
+  }
+    // Método para seguir a un usuario
+  Future<bool> followUser(String userId) async {
+    try {
+      // Obtener el ID del usuario actual
+      final currentUserId = await _secureStorage.getUserId();
+      if (currentUserId == null || currentUserId.isEmpty) {
+        debugPrint('[ERROR] No se pudo obtener el ID del usuario actual para seguir');
+        return false;
+      }
+      
+      // Usar el formato correcto de la ruta: /users/following/{id_follower}/{id_followed}
+      final response = await _apiClient.post('/users/following/$currentUserId/$userId');
+      
+      debugPrint('[DEBUG] Petición de seguir enviada a: /users/following/$currentUserId/$userId');
+      debugPrint('[DEBUG] Respuesta del servidor: ${response.toString()}');
+      
+      return response['success'] ?? false;
+    } catch (e) {
+      debugPrint('[ERROR] Error al seguir al usuario: ${e.toString()}');
+      _errorMessage = 'No se pudo seguir al usuario: ${e.toString()}';
+      notifyListeners();
+      return false;
+    }
+  }
+  
+  // Método para dejar de seguir a un usuario
+  Future<bool> unfollowUser(String userId) async {
+    try {
+      // Obtener el ID del usuario actual
+      final currentUserId = await _secureStorage.getUserId();
+      if (currentUserId == null || currentUserId.isEmpty) {
+        debugPrint('[ERROR] No se pudo obtener el ID del usuario actual para dejar de seguir');
+        return false;
+      }
+      
+      // Usar el formato correcto de la ruta: /users/following/{id_follower}/{id_followed}
+      final response = await _apiClient.delete('/users/following/$currentUserId/$userId');
+      
+      debugPrint('[DEBUG] Petición de dejar de seguir enviada a: /users/following/$currentUserId/$userId');
+      debugPrint('[DEBUG] Respuesta del servidor: ${response.toString()}');
+      
+      return response['success'] ?? false;
+    } catch (e) {
+      debugPrint('[ERROR] Error al dejar de seguir al usuario: ${e.toString()}');
+      _errorMessage = 'No se pudo dejar de seguir al usuario: ${e.toString()}';
+      notifyListeners();
+      return false;
+    }
+  }
+  
   // Método para calcular compatibilidad
   double calculateCompatibility() {
     return _compatibility;
