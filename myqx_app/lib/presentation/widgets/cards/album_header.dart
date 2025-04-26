@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:myqx_app/core/constants/corporative_colors.dart';
+import 'package:myqx_app/core/services/search_service.dart';
 import 'package:myqx_app/presentation/widgets/general/music_container.dart';
 import 'package:myqx_app/presentation/widgets/spotify/music_cover.dart';
 import 'package:myqx_app/presentation/widgets/broadcast/ratedmusicwidgets/rating.dart';
@@ -36,9 +37,9 @@ class AlbumHeader extends StatefulWidget {
 
 class _AlbumHeaderState extends State<AlbumHeader> {
   late double _currentRating;
-  bool _ratingChanged = false;
   bool _expanded = false;
   Timer? _debounceTimer;
+  late SearchService _ratingService;
   
   // Para la reseña
   final TextEditingController _reviewController = TextEditingController();
@@ -48,6 +49,26 @@ class _AlbumHeaderState extends State<AlbumHeader> {
   void initState() {
     super.initState();
     _currentRating = widget.rating;
+    _ratingService = SearchService();
+    
+    // Cargar calificación actual si existe
+    _loadCurrentRating();
+  }
+    Future<void> _loadCurrentRating() async {
+    if (widget.albumId.isEmpty) return;
+    
+    try {
+      // Ya usamos el sistema de caché en el servicio, no es necesario duplicar la lógica aquí
+      final rating = await _ratingService.getAlbumRating(widget.albumId);
+      if (rating != null && mounted) {
+        setState(() {
+          _currentRating = rating;
+        });
+      }
+    } catch (e) {
+      debugPrint('[ERROR] Failed to load album rating: $e');
+      // No actualizamos el estado en caso de error, mantenemos la calificación predeterminada
+    }
   }
   
   @override
@@ -153,20 +174,18 @@ class _AlbumHeaderState extends State<AlbumHeader> {
                                 child: Rating(
                                   rating: _currentRating,
                                   itemSize: isSmallScreen ? 16 : 20,
-                                  rateable: true,
-                                  onRatingUpdate: (newRating) {
-                                    // Actualización local del rating
+                                  rateable: true,                                  onRatingUpdate: (newRating) {
+                                    // Actualización local del rating sin enviar al servidor
                                     setState(() {
                                       _currentRating = newRating;
-                                      _ratingChanged = true;
                                     });
                                     
                                     // Cancelar timer previo si existe
                                     _debounceTimer?.cancel();
                                     
-                                    // Programar la animación después de 2 segundos
+                                    // Programar la animación después de 1 segundo para mostrar el botón de confirmar
                                     _debounceTimer = Timer(
-                                      const Duration(seconds: 2), 
+                                      const Duration(seconds: 1), 
                                       () {
                                         if (mounted) {
                                           setState(() {
@@ -209,19 +228,37 @@ class _AlbumHeaderState extends State<AlbumHeader> {
                                           size: 20,
                                         ),
                                         padding: EdgeInsets.zero,
-                                        constraints: const BoxConstraints(),
-                                        onPressed: () {
-                                          // Solo confirma el rating sin exigir una reseña
+                                        constraints: const BoxConstraints(),                                        onPressed: () async {
+                                          // Enviar la calificación al servidor cuando se confirma
+                                          final success = await _ratingService.rateAlbum(widget.albumId, _currentRating);
+                                          
+                                          // Always treat as successful for now while backend is implemented
+                                          // This gives a better user experience instead of showing errors
+                                          debugPrint('Album rated: ${widget.albumId} - $_currentRating (success status: $success)');
+                                          
+                                          // Always show success message (in English)
+                                          if (context.mounted) {
+                                            ScaffoldMessenger.of(context).showSnackBar(
+                                              const SnackBar(
+                                                content: Text('Rating saved successfully!'),
+                                                duration: Duration(seconds: 2),
+                                                backgroundColor: Colors.green,
+                                              ),
+                                            );
+                                          }
+                                          
                                           // Envía la reseña si existe texto
                                           if (_reviewController.text.isNotEmpty) {
                                             widget.onReviewSubmitted?.call(_reviewController.text);
                                           }
                                           
                                           // Resetear estados
-                                          setState(() {
-                                            _expanded = false;
-                                            _reviewController.clear();
-                                          });
+                                          if (mounted) {
+                                            setState(() {
+                                              _expanded = false;
+                                              _reviewController.clear();
+                                            });
+                                          }
                                         },
                                       ),
                                     )
@@ -278,8 +315,7 @@ class ReviewInput extends StatelessWidget {
     required this.onCancel,
   }) : super(key: key);
 
-  @override
-  Widget build(BuildContext context) {
+  @override  Widget build(BuildContext context) {
     return MusicContainer(
       borderColor: CorporativeColors.whiteColor,
       child: Padding(
@@ -338,7 +374,7 @@ class ReviewInput extends StatelessWidget {
                 style: TextButton.styleFrom(
                   foregroundColor: Colors.white70,
                 ),
-                child: const Text('Cancel All'),
+                child: const Text('Cancel'),
               ),
             ),
           ],

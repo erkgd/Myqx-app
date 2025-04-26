@@ -9,8 +9,6 @@ import 'package:myqx_app/core/constants/spotify_constants.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart'; 
 
-
-
 class SpotifyAuthService {
   // Reemplaza estos valores con tu configuración de Spotify Developer
   static const String _clientId = SpotifyConstants.clientId;
@@ -33,6 +31,12 @@ class SpotifyAuthService {
   ValueNotifier<bool> isAuthenticated = ValueNotifier<bool>(false);
   ValueNotifier<bool> isLoading = ValueNotifier<bool>(false);
   
+  // Variables para controlar verificaciones de autenticación
+  bool _isCheckingAuth = false;
+  DateTime? _lastAuthCheck;
+  String? _cachedToken;
+  DateTime? _cachedTokenExpiry;
+  
   // Singleton pattern
   static final SpotifyAuthService _instance = SpotifyAuthService._internal();
   
@@ -41,31 +45,59 @@ class SpotifyAuthService {
   }
   
   SpotifyAuthService._internal() {
-    _checkAuth();
+    // Iniciar verificación de autenticación de manera asíncrona
+    Future.microtask(() => _checkAuth());
   }
   
   // Verificar si ya está autenticado al inicializar
   Future<void> _checkAuth() async {
-    final prefs = await SharedPreferences.getInstance();
-    final accessToken = prefs.getString(_accessTokenKey);
-    final expiresAtStr = prefs.getString(_expiresAtKey);
+    // Evitar múltiples verificaciones simultáneas
+    if (_isCheckingAuth) return;
     
-    if (accessToken != null && expiresAtStr != null) {
-      final expiresAt = DateTime.parse(expiresAtStr);
-      if (expiresAt.isAfter(DateTime.now())) {
-        isAuthenticated.value = true;
-      } else {
-        // Token expirado, intentar refrescar
-        final refreshToken = prefs.getString(_refreshTokenKey);
-        if (refreshToken != null) {
-          try {
-            await _refreshAccessToken(refreshToken);
-            isAuthenticated.value = true;
-          } catch (e) {
+    // Si se verificó hace menos de 1 minuto, usar el resultado en caché
+    if (_lastAuthCheck != null && 
+        DateTime.now().difference(_lastAuthCheck!) < Duration(minutes: 1)) {
+      debugPrint('[DEBUG] Using cached auth status: ${isAuthenticated.value}');
+      return;
+    }
+    
+    _isCheckingAuth = true;
+    _lastAuthCheck = DateTime.now();
+    
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final accessToken = prefs.getString(_accessTokenKey);
+      final expiresAtStr = prefs.getString(_expiresAtKey);
+      
+      if (accessToken != null && expiresAtStr != null) {
+        final expiresAt = DateTime.parse(expiresAtStr);
+        if (expiresAt.isAfter(DateTime.now())) {
+          // Update the cached token
+          _cachedToken = accessToken;
+          _cachedTokenExpiry = expiresAt;
+          isAuthenticated.value = true;
+        } else {
+          // Token expirado, intentar refrescar
+          final refreshToken = prefs.getString(_refreshTokenKey);
+          if (refreshToken != null) {
+            try {
+              await _refreshAccessToken(refreshToken);
+              isAuthenticated.value = true;
+            } catch (e) {
+              isAuthenticated.value = false;
+            }
+          } else {
             isAuthenticated.value = false;
           }
         }
+      } else {
+        isAuthenticated.value = false;
       }
+    } catch (e) {
+      debugPrint('[ERROR] Error checking auth state: $e');
+      isAuthenticated.value = false;
+    } finally {
+      _isCheckingAuth = false;
     }
   }
   
@@ -78,211 +110,211 @@ class SpotifyAuthService {
   
   Future<bool> _isSpotifyInstalled() async {
     final spotifyUri = Uri.parse('spotify:');
-    
     try {
-      // Verificamos si podemos lanzar la URI de Spotify
       return await canLaunchUrl(spotifyUri);
     } catch (e) {
-      debugPrint('Error checking if Spotify is installed: $e');
+      debugPrint('[ERROR] Error checking if Spotify is installed: $e');
       return false;
     }
   }
   
-  // Iniciar sesión con Spotify con verificación previa
+  /// Login using Spotify OAuth
   Future<bool> login() async {
-  try {
+    if (isAuthenticated.value) {
+      debugPrint('[DEBUG] Already authenticated with Spotify');
+      return true;
+    }
+    
     isLoading.value = true;
-    debugPrint('[DEBUG] Iniciando proceso de login con Spotify...');
-
-    // Verificar si Spotify está instalado (opcional)
-    final hasSpotify = await _isSpotifyInstalled();
-    if (!hasSpotify) {
-      debugPrint('[DEBUG] Spotify no está instalado. Usando autenticación web.');
-    }
-
-    // Generar estado para seguridad contra ataques CSRF
-    final state = _generateRandomString(16);
-    final queryParameters = {
-      'client_id': _clientId,
-      'response_type': 'code',
-      'redirect_uri': _redirectUri,
-      'state': state,
-      'scope': _scope,
-      'show_dialog': 'true',
-    };
-
-    final authorizeUrl = Uri.parse('$_authUrl?${Uri(queryParameters: queryParameters).query}');
-    debugPrint('[DEBUG] URL de autenticación generada: $authorizeUrl');
-
-    String result;
-
     try {
-      // Iniciar la autenticación web
-      result = await FlutterWebAuth2.authenticate(
-        url: authorizeUrl.toString(),
-        callbackUrlScheme: 'myqx', // Esquema de callback
-      );
-      debugPrint('[DEBUG] Autenticación completada, procesando respuesta...');
-    } on PlatformException catch (e) {
-      if (e.code == 'CANCELED') {
-        debugPrint('[DEBUG] Usuario canceló el proceso de autenticación.');
-      } else {
-        debugPrint('[DEBUG] Error en autenticación: ${e.message}');
-      }
-      return false;
-    }
-
-    // Procesar la respuesta de autenticación
-    final uri = Uri.parse(result);
-    final receivedState = uri.queryParameters['state'];
-    if (receivedState != state) {
-      debugPrint('[DEBUG] Estado inválido, posible ataque CSRF');
-      return false;
-    }
-
-    // Obtener el código de autorización
-    final code = uri.queryParameters['code'];
-    if (code == null) {
-      debugPrint('[DEBUG] No se recibió código de autorización');
-      return false;
-    }
-
-    // Obtener el token de acceso usando el código de autorización
-    debugPrint('[DEBUG] Código de autorización recibido. Obteniendo token...');
-    await _getAccessToken(code);
-    isAuthenticated.value = true;
-
-    debugPrint('[DEBUG] Login exitoso');
-    return true;
-  } catch (e) {
-    debugPrint('[DEBUG] Error inesperado en el proceso de login: $e');
-    return false;
-  } finally {
-    isLoading.value = false;
-  }
-}
-  
-  // Obtener token de acceso con código de autorización
-  Future<void> _getAccessToken(String code) async {
-    final response = await http.post(
-      Uri.parse(_tokenUrl),
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-      body: {
-        'client_id': _clientId,
-        'client_secret': SpotifyConstants.clientSecret, // Añadido client_secret
-        'grant_type': 'authorization_code',
-        'code': code,
-        'redirect_uri': _redirectUri,
-      },
-    );
-    
-    if (response.statusCode == 200) {
-      final data = json.decode(response.body);
-      await _saveTokens(
-        data['access_token'],
-        data['refresh_token'],
-        data['expires_in'],
-      );
-    } else {
-      debugPrint('Error de Spotify: ${response.body}');
-      throw Exception('Error obteniendo token de acceso: ${response.body}');
-    }
-  }
-  
-  // Refrescar token de acceso
-  Future<void> _refreshAccessToken(String refreshToken) async {
-    final response = await http.post(
-      Uri.parse(_tokenUrl),
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-      body: {
-        'client_id': _clientId,
-        'client_secret': SpotifyConstants.clientSecret, // Añadido client_secret
-        'grant_type': 'refresh_token',
-        'refresh_token': refreshToken,
-      },
-    );
-    
-    if (response.statusCode == 200) {
-      final data = json.decode(response.body);
-      await _saveTokens(
-        data['access_token'],
-        data['refresh_token'] ?? refreshToken, // Usar el nuevo refresh_token si lo hay
-        data['expires_in'],
-      );
-    } else {
-      throw Exception('Error refrescando token: ${response.body}');
-    }
-  }
-  
-  // Guardar tokens en almacenamiento local
-  Future<void> _saveTokens(String accessToken, String refreshToken, int expiresIn) async {
-    final prefs = await SharedPreferences.getInstance();
-    final expiresAt = DateTime.now().add(Duration(seconds: expiresIn));
-    
-    await Future.wait([
-      prefs.setString(_accessTokenKey, accessToken),
-      prefs.setString(_refreshTokenKey, refreshToken),
-      prefs.setString(_expiresAtKey, expiresAt.toIso8601String()),
-    ]);
-  }
-  
-  // Cerrar sesión de manera segura
-  Future<void> logout() async {
-    try {
-      isLoading.value = true;
+      // Generate a random state string for CSRF protection
+      final state = _generateRandomString(16);
       
-      final prefs = await SharedPreferences.getInstance();
-      await Future.wait([
-        prefs.remove(_accessTokenKey),
-        prefs.remove(_refreshTokenKey),
-        prefs.remove(_expiresAtKey),
-      ]);
+      // Build auth URL with proper parameters
+      final authUrl = Uri.parse(_authUrl).replace(
+        queryParameters: {
+          'client_id': _clientId,
+          'response_type': 'code',
+          'redirect_uri': _redirectUri,
+          'state': state,
+          'scope': _scope,
+          'show_dialog': 'true',
+        },
+      );
       
-      // Opcional: Si quieres revocar el token en Spotify para mayor seguridad
-      // pero no es estrictamente necesario
-      final token = await getAccessToken();
-      if (token != null) {
-        try {
-          await http.post(
-            Uri.parse('https://accounts.spotify.com/api/token/revoke'),
-            headers: {
-              'Content-Type': 'application/x-www-form-urlencoded',
-              'Authorization': 'Basic ' + base64Encode(utf8.encode('$_clientId:${SpotifyConstants.clientSecret}')),
-            },
-            body: {
-              'token': token,
-              'token_type_hint': 'access_token',
-            },
-          ).timeout(const Duration(seconds: 5));
-        } catch (e) {
-          // Ignoramos errores aquí, no afecta al logout local
-          debugPrint('Error al revocar token: $e');
-        }
+      debugPrint('[DEBUG] Opening auth URL: $authUrl');
+      
+      // Launch auth flow
+      final result = await FlutterWebAuth2.authenticate(
+        url: authUrl.toString(),
+        callbackUrlScheme: Uri.parse(_redirectUri).scheme,
+      );
+      
+      debugPrint('[DEBUG] Auth flow complete: $result');
+      
+      // Extract code from response
+      final code = Uri.parse(result).queryParameters['code'];
+      if (code == null) {
+        throw Exception('No authorization code received');
       }
+      
+      // Get token using the authorization code
+      await _getAccessToken(code);
+      isAuthenticated.value = true;
+      return true;
     } catch (e) {
-      debugPrint('Error durante logout: $e');
+      debugPrint('[ERROR] Spotify login failed: $e');
+      return false;
     } finally {
-      // Asegurar que el estado de autenticación se actualice
-      isAuthenticated.value = false;
       isLoading.value = false;
     }
   }
   
-  // Obtener token actual
+  /// Logout from Spotify
+  Future<void> logout() async {
+    isLoading.value = true;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      
+      // Remove stored tokens
+      await prefs.remove(_accessTokenKey);
+      await prefs.remove(_refreshTokenKey);
+      await prefs.remove(_expiresAtKey);
+      
+      // Clear cached values
+      _cachedToken = null;
+      _cachedTokenExpiry = null;
+      
+      isAuthenticated.value = false;
+      debugPrint('[DEBUG] Spotify logout successful');
+    } catch (e) {
+      debugPrint('[ERROR] Error during Spotify logout: $e');
+    } finally {
+      isLoading.value = false;
+    }
+  }
+  
+  Future<void> _getAccessToken(String code) async {
+    try {
+      final response = await http.post(
+        Uri.parse(_tokenUrl),
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Authorization': 'Basic ' + base64Encode(utf8.encode('$_clientId:${SpotifyConstants.clientSecret}')),
+        },
+        body: {
+          'grant_type': 'authorization_code',
+          'code': code,
+          'redirect_uri': _redirectUri,
+          'client_id': _clientId,
+          'client_secret': SpotifyConstants.clientSecret,
+        },
+      );
+      
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        await _saveTokens(
+          data['access_token'],
+          data['refresh_token'],
+          data['expires_in'],
+        );
+      } else {
+        throw Exception('Error getting access token: ${response.statusCode}');
+      }
+    } catch (e) {
+      debugPrint('[ERROR] Error getting access token: $e');
+      throw e;
+    }
+  }
+  
+  Future<void> _refreshAccessToken(String refreshToken) async {
+    try {
+      final response = await http.post(
+        Uri.parse(_tokenUrl),
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Authorization': 'Basic ' + base64Encode(utf8.encode('$_clientId:${SpotifyConstants.clientSecret}')),
+        },
+        body: {
+          'grant_type': 'refresh_token',
+          'refresh_token': refreshToken,
+          'client_id': _clientId,
+          'client_secret': SpotifyConstants.clientSecret,
+        },
+      );
+      
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        
+        // Spotify might not return a new refresh token
+        final newRefreshToken = data['refresh_token'] ?? refreshToken;
+        
+        await _saveTokens(
+          data['access_token'],
+          newRefreshToken,
+          data['expires_in'],
+        );
+      } else {
+        throw Exception('Error refreshing token: ${response.statusCode}');
+      }
+    } catch (e) {
+      debugPrint('[ERROR] Error refreshing token: $e');
+      throw e;
+    }
+  }
+  
+  Future<void> _saveTokens(String accessToken, String refreshToken, int expiresIn) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      
+      // Calculate expiration date
+      final expiresAt = DateTime.now().add(Duration(seconds: expiresIn));
+      
+      // Store tokens
+      await prefs.setString(_accessTokenKey, accessToken);
+      await prefs.setString(_refreshTokenKey, refreshToken);
+      await prefs.setString(_expiresAtKey, expiresAt.toIso8601String());
+      
+      // Update cached values
+      _cachedToken = accessToken;
+      _cachedTokenExpiry = expiresAt;
+      
+      debugPrint('[DEBUG] Tokens saved successfully. Expires at: $expiresAt');
+    } catch (e) {
+      debugPrint('[ERROR] Error saving tokens: $e');
+      throw e;
+    }
+  }
+  
+  // Obtener token actual con caché optimizada
   Future<String?> getAccessToken() async {
+    // Si ya tenemos un token en caché y no ha expirado
+    if (_cachedToken != null && _cachedTokenExpiry != null) {
+      // Si el token caduca en más de 5 minutos, usamos la caché
+      if (DateTime.now().isBefore(_cachedTokenExpiry!.subtract(Duration(minutes: 5)))) {
+        debugPrint('[DEBUG] Using cached Spotify token (valid for ${_cachedTokenExpiry!.difference(DateTime.now()).inMinutes} more minutes)');
+        return _cachedToken;
+      }
+    }
+    
     await _checkAuth();
     if (!isAuthenticated.value) {
       return null;
     }
+    
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(_accessTokenKey);
+    final token = prefs.getString(_accessTokenKey);
+    final expiresAtStr = prefs.getString(_expiresAtKey);
+    
+    if (token != null && expiresAtStr != null) {
+      // Actualizar la caché
+      _cachedToken = token;
+      _cachedTokenExpiry = DateTime.parse(expiresAtStr);
+      debugPrint('[DEBUG] Spotify token refreshed and cached');
+    }
+    
+    return token;
   }
-  
-  
 }
 
 

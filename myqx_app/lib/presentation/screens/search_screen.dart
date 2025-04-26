@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:myqx_app/core/constants/corporative_colors.dart';
 import 'package:myqx_app/core/services/spotify_search_service.dart';
+import 'package:myqx_app/core/services/search_service.dart';
 import 'package:myqx_app/presentation/providers/navigation_provider.dart';
 import 'package:myqx_app/presentation/widgets/cards/album_header.dart';
 import 'package:myqx_app/presentation/widgets/general/gradient_background.dart';
@@ -19,24 +20,35 @@ class SearchScreen extends StatefulWidget {
 class _SearchScreenState extends State<SearchScreen> {
   final TextEditingController _searchController = TextEditingController();
   late final SpotifySearchService _searchService;
+  late final SearchService _ratingService; // Servicio para gestionar calificaciones
   bool _showResults = false;
   String _searchQuery = '';
   bool _filterAlbums = true;
   bool _filterTracks = true;
   bool _isSearchPressed = false;
+  bool _isInitialized = false;
   
+  // Tiempo de última búsqueda para evitar búsquedas frecuentes del mismo término
+  DateTime? _lastSearchTime;
+  String? _lastSearchQuery;
   
   @override
   void initState() {
     super.initState();
-    _searchService = SpotifySearchService();
+    // Inicializar servicios con soporte para caché
+    _searchService = SpotifySearchService(lazyInit: true);
+    _ratingService = SearchService();
     _searchService.addListener(_onSearchResultsChanged);
+    
+    debugPrint('[DEBUG] Search screen initialized with cached services');
   }
-  
-  @override
+    @override
   void dispose() {
+    // We don't clear caches here, as they're intended to persist between screen visits
+    // Only clean up controller and listener references
     _searchController.dispose();
     _searchService.removeListener(_onSearchResultsChanged);
+    debugPrint('[DEBUG] Search screen disposed (caches preserved)');
     super.dispose();
   }
   
@@ -45,23 +57,36 @@ class _SearchScreenState extends State<SearchScreen> {
       setState(() {}); // Refresh UI when search results change
     }
   }
-  
-  void _performSearch() {
+    void _performSearch() {
     final query = _searchController.text.trim();
     if (query.isEmpty) return;
+    
+    // Avoid repeated searches of the same term in short time windows
+    final now = DateTime.now();
+    if (_lastSearchQuery == query && 
+        _lastSearchTime != null && 
+        now.difference(_lastSearchTime!) < const Duration(seconds: 3)) {
+      debugPrint('[DEBUG] Ignoring repeated search request for "$query" (too soon)');
+      return;
+    }
+    
+    // Update search tracking
+    _lastSearchQuery = query;
+    _lastSearchTime = now;
     
     setState(() {
       _showResults = true;
       _searchQuery = query;
     });
     
-    // Determinar el tipo de búsqueda basado en los filtros activos
+    // Determine search type based on active filters
     String type = '';
     if (_filterTracks) type += 'track,';
     if (_filterAlbums) type += 'album,';
     if (type.isEmpty) type = 'track,album'; // Default if nothing selected
     else type = type.substring(0, type.length - 1); // Remove trailing comma
     
+    debugPrint('[DEBUG] Performing search for "$query" (type: $type)');
     _searchService.search(query, type: type);
   }
   

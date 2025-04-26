@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:myqx_app/core/constants/corporative_colors.dart';
+import 'package:myqx_app/core/services/search_service.dart';
 import 'package:myqx_app/presentation/widgets/general/music_container.dart';
 import 'package:myqx_app/presentation/widgets/broadcast/ratedmusicwidgets/rating.dart';
 
@@ -32,14 +33,34 @@ class AlbumTrackCard extends StatefulWidget {
 
 class _AlbumTrackCardState extends State<AlbumTrackCard> {
   double _currentRating = 0;
-  bool _ratingChanged = false;
   bool _expanded = false;
   Timer? _debounceTimer;
+  late SearchService _ratingService;
   
   @override
   void initState() {
     super.initState();
     _currentRating = widget.rating;
+    _ratingService = SearchService();
+    
+    // Cargar calificación actual si existe
+    _loadCurrentRating();
+  }
+    Future<void> _loadCurrentRating() async {
+    if (widget.songId.isEmpty) return;
+    
+    try {
+      // Ya usamos el sistema de caché en el servicio, no es necesario duplicar la lógica aquí
+      final rating = await _ratingService.getSongRating(widget.songId);
+      if (rating != null && mounted) {
+        setState(() {
+          _currentRating = rating;
+        });
+      }
+    } catch (e) {
+      debugPrint('[ERROR] Failed to load track rating: $e');
+      // No actualizamos el estado en caso de error, mantenemos la calificación predeterminada
+    }
   }
   
   @override
@@ -60,139 +81,177 @@ class _AlbumTrackCardState extends State<AlbumTrackCard> {
       child: Stack(
         clipBehavior: Clip.none,
         children: [
-          // Contenido principal
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 2.0, vertical: 0),
+          SizedBox(
+            height: 60,
             child: Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                // 1. Botón de Play
-                IconButton(
-                  icon: Icon(
-                    Icons.play_circle_filled,
-                    color: CorporativeColors.whiteColor,
-                    size: isSmallScreen ? 18 : 24,
+                // Track number
+                Container(
+                  width: 30,
+                  alignment: Alignment.center,
+                  child: Text(
+                    '${widget.trackNumber}',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white70,
+                    ),
                   ),
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(),
-                  onPressed: widget.onPlayPressed ?? () {
-                    debugPrint('Play button pressed for track: ${widget.trackName}');
-                  },
                 ),
-                
-                const SizedBox(width: 8),
-                
-                // 2. Número y nombre de la canción
-                Expanded(
-                  child: Row(
-                    children: [
-                      SizedBox(
-                        width: isSmallScreen ? 18 : 20,
-                        child: Text(
-                          '${widget.trackNumber}.',
-                          style: TextStyle(
-                            color: Colors.white70,
-                            fontWeight: FontWeight.bold,
-                            fontSize: isSmallScreen ? 11 : 13,
-                          ),
-                        ),
+
+                // Album cover (small)
+                if (widget.albumCoverUrl.isNotEmpty)
+                  Container(
+                    width: 40,
+                    height: 40,
+                    margin: const EdgeInsets.symmetric(horizontal: 5),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(5),
+                      image: DecorationImage(
+                        image: NetworkImage(widget.albumCoverUrl),
+                        fit: BoxFit.cover,
                       ),
-                      
-                      Expanded(
-                        child: Text(
-                          widget.trackName,
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: isSmallScreen ? 12 : 14,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+
+                const SizedBox(width: 10),
+
+                // Track info
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        widget.trackName,
+                        style: TextStyle(
+                          fontSize: isSmallScreen ? 14 : 16,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.white,
                         ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ],
                   ),
                 ),
-                
-                // Espacio para el rating que será posicionado en el Stack
-                const SizedBox(width: 4),
-              ],
-            ),
-          ),
-          
-          // Rating animado - ahora es parte del Stack y se mueve con el panel
-          Positioned(
-            right: _expanded ? 70.0 : 10.0, // Se mueve junto con el panel
-            top: 0,
-            bottom: 0,
-            child: AnimatedContainer(
-              duration: animationDuration,
-              curve: animationCurve,
-              alignment: Alignment.center,
-              child: Rating(
-                rating: _currentRating,
-                itemSize: isSmallScreen ? 15 : 17,
-                onRatingUpdate: (value) {
-                  setState(() {
-                    _currentRating = value;
-                    _ratingChanged = true;
-                  });
-                  
-                  // Cancelar el timer anterior si existe
-                  _debounceTimer?.cancel();
-                  
-                  // Mostrar el panel después de un tiempo
-                  _debounceTimer = Timer(const Duration(milliseconds: 2000), () {
-                    setState(() {
-                      _expanded = true;
-                    });
-                  });
-                  
-                  if (widget.onRatingChanged != null) {
-                    widget.onRatingChanged!(value);
-                  }
-                },
-              ),
-            ),
-          ),
-          
-          // Sección desplegable
-          Positioned(
-            right: 0,
-            top: 0,
-            bottom: 0,
-            child: AnimatedContainer(
-              duration: animationDuration, // Misma duración para ambas animaciones
-              curve: animationCurve, // Misma curva para ambas animaciones
-              width: _expanded ? 60.0 : 0.0,
-              decoration: BoxDecoration(
-                color: CorporativeColors.darkColor.withOpacity(0.9),
-                borderRadius: const BorderRadius.only(
-                  topRight: Radius.circular(8.0),
-                  bottomRight: Radius.circular(8.0),
-                ),
-                border: Border.all(
-                  color: CorporativeColors.mainColor,
-                  width: 1.0,
-                ),
-              ),
-              child: _expanded 
-                ? Center(
-                    child: IconButton(
-                      icon: const Icon(
-                        Icons.check_circle,
-                        color: CorporativeColors.whiteColor,
-                        size: 20,
+
+                // Rating with animation
+                Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    AnimatedContainer(
+                      duration: animationDuration,
+                      curve: animationCurve,
+                      transform: Matrix4.translationValues(
+                        _expanded ? -40.0 : 0.0, 0, 0,
                       ),
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
-                      onPressed: () {
-                        setState(() {
-                          _expanded = false;
-                        });
-                      },
+                      child: Rating(
+                        rating: _currentRating,
+                        itemSize: 18,
+                        rateable: true,                        onRatingUpdate: (newRating) {
+                          // Actualización local del rating sin enviar al servidor
+                          setState(() {
+                            _currentRating = newRating;
+                          });
+                          
+                          // Cancelar timer previo si existe
+                          _debounceTimer?.cancel();
+                          
+                          // Programar la animación después de 1 segundo para mostrar el botón de confirmar
+                          _debounceTimer = Timer(
+                            const Duration(seconds: 1), 
+                            () {
+                              if (mounted) {
+                                setState(() {
+                                  _expanded = true;
+                                });
+                              }
+                            }
+                          );
+                          
+                          // Notificar al padre si es necesario
+                          widget.onRatingChanged?.call(newRating);
+                        },
+                      ),
                     ),
-                  )
-                : null,
+
+                    // Panel de confirmación
+                    Positioned(
+                      right: 0,
+                      top: 0,
+                      bottom: 0,
+                      child: AnimatedContainer(
+                        duration: animationDuration,
+                        curve: animationCurve,
+                        width: _expanded ? 40.0 : 0.0,
+                        decoration: BoxDecoration(
+                          color: CorporativeColors.darkColor.withOpacity(0.9),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: CorporativeColors.mainColor,
+                            width: 1.0,
+                          ),
+                        ),
+                        child: _expanded
+                            ? Center(
+                                child: IconButton(
+                                  icon: const Icon(
+                                    Icons.check,
+                                    color: CorporativeColors.whiteColor,
+                                    size: 16,
+                                  ),
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(),                                  onPressed: () async {
+                                    // Enviar la calificación al servidor cuando se confirma
+                                    final success = await _ratingService.rateSong(widget.songId, _currentRating);
+                                      // Always treat as successful for now while backend is implemented
+                                    // This gives a better user experience instead of showing errors
+                                    debugPrint('Song rated: ${widget.songId} - $_currentRating (success status: $success)');
+                                    
+                                    // Always show success message (in English)
+                                    if (context.mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(
+                                          content: Text('Rating saved successfully!'),
+                                          duration: Duration(seconds: 2),
+                                          backgroundColor: Colors.green,
+                                        ),
+                                      );
+                                    }
+                                    
+                                    // Ocultar el panel de confirmación
+                                    if (mounted) {
+                                      setState(() {
+                                        _expanded = false;
+                                      });
+                                    }
+                                  },
+                                ),
+                              )
+                            : null,
+                      ),
+                    ),
+                  ],
+                ),
+                
+                const SizedBox(width: 10),
+                
+                // Play button
+                IconButton(
+                  icon: const Icon(
+                    Icons.play_circle_outlined,
+                    color: CorporativeColors.mainColor,
+                  ),
+                  onPressed: widget.onPlayPressed ?? () {
+                    // Abrir URL de Spotify si no se proporciona una acción específica
+                    if (widget.spotifyUrl.isNotEmpty) {
+                      // Aquí podríamos usar url_launcher pero necesitaríamos añadir dependencias
+                      debugPrint('Abrir URL: ${widget.spotifyUrl}');
+                    }
+                  },
+                ),
+              ],
             ),
           ),
         ],

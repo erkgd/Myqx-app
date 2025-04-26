@@ -4,6 +4,8 @@ import 'package:myqx_app/core/services/auth_service_bff.dart';
 import 'package:myqx_app/core/exceptions/api_exceptions.dart';
 import 'package:myqx_app/core/http/api_client.dart';
 import 'package:myqx_app/core/storage/secure_storage.dart';
+import 'package:myqx_app/core/services/search_service.dart';
+import 'package:myqx_app/core/services/spotify_search_service.dart';
 import 'package:myqx_app/domain/models/user_model.dart';
 import 'package:myqx_app/domain/models/auth_response_model.dart';
 import 'package:myqx_app/presentation/providers/spotify_auth_provider.dart';
@@ -116,7 +118,6 @@ class AuthService extends ChangeNotifier {
       currentUser.value = null;
     }
   }
-  
   /// Método público para forzar la limpieza de todo el estado de autenticación
   /// Se usa como último recurso cuando hay problemas con la sesión
   Future<void> forceCleanAuthState() async {
@@ -135,7 +136,23 @@ class AuthService extends ChangeNotifier {
         // Continuamos con el proceso aunque falle esto
       }
       
-      // 3. Resetear el estado observable
+      // 3. Limpiar cachés de búsqueda y calificaciones
+      try {
+        // Acceder directamente a los servicios ya que están importados
+        final spotifySearchService = SpotifySearchService();
+        spotifySearchService.clearCache();
+        debugPrint('[DEBUG] Caché de búsqueda de Spotify limpiada');
+        
+        // Limpiar caché de calificaciones
+        final ratingService = SearchService();
+        ratingService.clearRatingsCache();
+        debugPrint('[DEBUG] Caché de calificaciones limpiada');
+      } catch (e) {
+        debugPrint('[DEBUG] Error al limpiar cachés: $e');
+        // Continuamos con el proceso aunque falle esto
+      }
+      
+      // 4. Resetear el estado observable
       currentUser.value = null;
       isAuthenticated.value = false;
       errorMessage.value = null;

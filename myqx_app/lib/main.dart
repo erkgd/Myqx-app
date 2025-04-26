@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:myqx_app/core/constants/corporative_colors.dart';
+import 'package:myqx_app/core/utils/cache_manager.dart';
 import 'package:myqx_app/presentation/providers/navigation_provider.dart';
 import 'package:myqx_app/presentation/providers/auth_provider.dart';
 import 'package:myqx_app/presentation/providers/spotify_auth_provider.dart';
@@ -8,8 +9,11 @@ import 'package:myqx_app/presentation/widgets/general/app_scaffold.dart';
 import 'package:myqx_app/presentation/screens/login_screen.dart';
 import 'package:myqx_app/presentation/screens/unaffiliated_profile_screen.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // Check app version and clear caches if needed
+  await CacheManager().checkAndClearCachesOnVersionChange();
   
   runApp(
     MultiProvider(
@@ -114,6 +118,9 @@ class _AuthWrapperState extends State<AuthWrapper> with WidgetsBindingObserver {
           // Si el token no es válido, limpiar estado
           debugPrint('[DEBUG] AuthWrapper: Token no válido, limpiando estado');
           await authService.forceCleanAuthState();
+          
+          // Also clear caches when auth state is invalid
+          await CacheManager().clearAllCaches();
         }
       }
     } catch (e) {
@@ -131,7 +138,7 @@ class _AuthWrapperState extends State<AuthWrapper> with WidgetsBindingObserver {
   @override
   Widget build(BuildContext context) {
     // Obtenemos el estado de autenticación
-    final authService = Provider.of<AuthService>(context, listen: false);
+    final authService = Provider.of<AuthService>(context);
     
     // Si no hemos completado la verificación inicial, mostrar loader
     if (!_initialCheckDone) {
