@@ -1,19 +1,7 @@
-import 'dart:collection';
 import 'package:flutter/foundation.dart';
 import 'package:myqx_app/core/http/api_client.dart';
 import 'package:myqx_app/core/storage/secure_storage.dart';
-
-/// Clase para almacenar calificaciones en caché con tiempo de expiración
-class _CachedRating {
-  final double rating;
-  final DateTime timestamp;
-  
-  _CachedRating(this.rating) : timestamp = DateTime.now();
-  
-  bool isExpired(Duration cacheDuration) {
-    return DateTime.now().difference(timestamp) > cacheDuration;
-  }
-}
+import 'package:myqx_app/core/utils/rating_cache.dart';
 
 /// Servicio que gestiona las operaciones relacionadas con búsquedas y calificaciones
 class SearchService extends ChangeNotifier {
@@ -21,13 +9,6 @@ class SearchService extends ChangeNotifier {
   final SecureStorage _secureStorage;
   String? _errorMessage;
   bool _isLoading = false;
-
-  // Sistema de caché para calificaciones
-  final Map<String, _CachedRating> _albumRatingsCache = HashMap<String, _CachedRating>();
-  final Map<String, _CachedRating> _songRatingsCache = HashMap<String, _CachedRating>();
-  
-  // Tiempo de expiración de la caché (10 minutos)
-  final Duration _cacheDuration = const Duration(minutes: 10);
 
   // Getters
   String? get errorMessage => _errorMessage;
@@ -37,7 +18,6 @@ class SearchService extends ChangeNotifier {
   SearchService({ApiClient? apiClient, SecureStorage? secureStorage}) 
       : _apiClient = apiClient ?? ApiClient(),
         _secureStorage = secureStorage ?? SecureStorage();
-
   /// Califica un álbum
   /// 
   /// [albumId] es el ID del álbum en Spotify
@@ -49,6 +29,11 @@ class SearchService extends ChangeNotifier {
     }
 
     try {
+      // IMPORTANTE: Siempre guardar en caché primero, incluso antes de intentar enviar al servidor
+      // Esto garantiza que la calificación persista localmente incluso si falla la petición
+      RatingCache().setAlbumRating(albumId, rating);
+      debugPrint('[CACHE] Album rating cached immediately: $albumId - $rating');
+      
       // Get user ID from secure storage
       final userId = await _secureStorage.getUserId();
       if (userId == null || userId.isEmpty) {
@@ -66,27 +51,23 @@ class SearchService extends ChangeNotifier {
         'user_id': userId,  // Include user ID in the request
       });
       
-      debugPrint('[DEBUG] Album rating sent: $albumId - $rating by user $userId');
+      debugPrint('[DEBUG] Album rating sent to server: $albumId - $rating by user $userId');
+      debugPrint('[DEBUG] Server response: ${response.toString()}');
       
-      // Si la calificación fue exitosa, actualizar la caché
-      if (response['success'] == true) {
-        _albumRatingsCache[albumId] = _CachedRating(rating);
-        debugPrint('[DEBUG] Album rating cached: $albumId - $rating');
-      }
-      
-      debugPrint('[DEBUG] Response: ${response.toString()}');
+      // Incluso si el servidor devuelve un error, mantenemos la calificación en caché
+      // para mejorar la experiencia de usuario
       
       return response['success'] ?? false;
     } catch (e) {
       _errorMessage = 'Error rating album: ${e.toString()}';
       debugPrint('[ERROR] $_errorMessage');
+      // La calificación ya se guardó en caché, así que el error del servidor no afecta la experiencia de usuario
       return false;
     } finally {
       _isLoading = false;
       notifyListeners();
     }
   }
-
   /// Califica una canción
   /// 
   /// [songId] es el ID de la canción en Spotify
@@ -98,6 +79,11 @@ class SearchService extends ChangeNotifier {
     }
     
     try {
+      // IMPORTANTE: Siempre guardar en caché primero, incluso antes de intentar enviar al servidor
+      // Esto garantiza que la calificación persista localmente incluso si falla la petición
+      RatingCache().setTrackRating(songId, rating);
+      debugPrint('[CACHE] Track rating cached immediately: $songId - $rating');
+      
       // Get user ID from secure storage
       final userId = await _secureStorage.getUserId();
       if (userId == null || userId.isEmpty) {
@@ -115,20 +101,17 @@ class SearchService extends ChangeNotifier {
         'user_id': userId,  // Include user ID in the request
       });
       
-      debugPrint('[DEBUG] Track rating sent: $songId - $rating by user $userId');
+      debugPrint('[DEBUG] Track rating sent to server: $songId - $rating by user $userId');
+      debugPrint('[DEBUG] Server response: ${response.toString()}');
       
-      // Si la calificación fue exitosa, actualizar la caché
-      if (response['success'] == true) {
-        _songRatingsCache[songId] = _CachedRating(rating);
-        debugPrint('[DEBUG] Song rating cached: $songId - $rating');
-      }
-      
-      debugPrint('[DEBUG] Response: ${response.toString()}');
+      // Incluso si el servidor devuelve un error, mantenemos la calificación en caché
+      // para mejorar la experiencia de usuario
       
       return response['success'] ?? false;
     } catch (e) {
       _errorMessage = 'Error rating track: ${e.toString()}';
       debugPrint('[ERROR] $_errorMessage');
+      // La calificación ya se guardó en caché, así que el error del servidor no afecta la experiencia de usuario
       return false;
     } finally {
       _isLoading = false;
@@ -140,11 +123,11 @@ class SearchService extends ChangeNotifier {
   Future<double?> getAlbumRating(String albumId) async {
     if (albumId.isEmpty) return null;
     
-    // Verificar si existe en caché y no ha expirado
-    final cachedRating = _albumRatingsCache[albumId];
-    if (cachedRating != null && !cachedRating.isExpired(_cacheDuration)) {
-      debugPrint('[DEBUG] Using cached album rating: $albumId - ${cachedRating.rating}');
-      return cachedRating.rating;
+    // Verificar primero en la caché global
+    if (RatingCache().hasValidAlbumRating(albumId)) {
+      final cachedRating = RatingCache().getAlbumRating(albumId);
+      debugPrint('[CACHE] Using cached album rating: $albumId - $cachedRating');
+      return cachedRating;
     }
     
     try {
@@ -155,19 +138,24 @@ class SearchService extends ChangeNotifier {
         return null;
       }
       
+      debugPrint('[DEBUG] Fetching album rating from server: $albumId');
       // Include user_id as a query parameter
       final response = await _apiClient.get('/albums/$albumId/rating?user_id=$userId');
       final rating = response['rating']?.toDouble();
       
       // Si se obtuvo una calificación, guardarla en caché
       if (rating != null) {
-        _albumRatingsCache[albumId] = _CachedRating(rating);
-        debugPrint('[DEBUG] Album rating cached from server: $albumId - $rating');
+        RatingCache().setAlbumRating(albumId, rating);
+      } else {
+        // También cacheamos los resultados nulos para evitar peticiones repetidas
+        RatingCache().setAlbumRating(albumId, null);
       }
       
       return rating;
     } catch (e) {
       debugPrint('[ERROR] Error getting album rating: ${e.toString()}');
+      // Guardamos el error en caché para evitar peticiones repetidas que sabemos que van a fallar
+      RatingCache().setAlbumRating(albumId, null);
       return null;
     }
   }
@@ -176,11 +164,11 @@ class SearchService extends ChangeNotifier {
   Future<double?> getSongRating(String songId) async {
     if (songId.isEmpty) return null;
     
-    // Verificar si existe en caché y no ha expirado
-    final cachedRating = _songRatingsCache[songId];
-    if (cachedRating != null && !cachedRating.isExpired(_cacheDuration)) {
-      debugPrint('[DEBUG] Using cached song rating: $songId - ${cachedRating.rating}');
-      return cachedRating.rating;
+    // Verificar primero en la caché global
+    if (RatingCache().hasValidTrackRating(songId)) {
+      final cachedRating = RatingCache().getTrackRating(songId);
+      debugPrint('[CACHE] Using cached track rating: $songId - $cachedRating');
+      return cachedRating;
     }
     
     try {
@@ -191,27 +179,31 @@ class SearchService extends ChangeNotifier {
         return null;
       }
       
+      debugPrint('[DEBUG] Fetching track rating from server: $songId');
       // Include user_id as a query parameter
       final response = await _apiClient.get('/tracks/$songId/rating?user_id=$userId');
       final rating = response['rating']?.toDouble();
       
       // Si se obtuvo una calificación, guardarla en caché
       if (rating != null) {
-        _songRatingsCache[songId] = _CachedRating(rating);
-        debugPrint('[DEBUG] Song rating cached from server: $songId - $rating');
+        RatingCache().setTrackRating(songId, rating);
+      } else {
+        // También cacheamos los resultados nulos para evitar peticiones repetidas
+        RatingCache().setTrackRating(songId, null);
       }
       
       return rating;
     } catch (e) {
       debugPrint('[ERROR] Error getting track rating: ${e.toString()}');
+      // Guardamos el error en caché para evitar peticiones repetidas que sabemos que van a fallar
+      RatingCache().setTrackRating(songId, null);
       return null;
     }
   }
 
   /// Limpia la caché de calificaciones
   void clearRatingsCache() {
-    _albumRatingsCache.clear();
-    _songRatingsCache.clear();
+    RatingCache().clear();
     debugPrint('[DEBUG] Ratings cache cleared');
   }
 }

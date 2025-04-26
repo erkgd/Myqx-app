@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:myqx_app/core/constants/corporative_colors.dart';
 import 'package:myqx_app/core/services/search_service.dart';
+import 'package:myqx_app/core/utils/rating_cache.dart';
 import 'package:myqx_app/presentation/widgets/general/music_container.dart';
 import 'package:myqx_app/presentation/widgets/spotify/music_cover.dart';
 import 'package:myqx_app/presentation/widgets/broadcast/ratedmusicwidgets/rating.dart';
@@ -17,6 +18,7 @@ class AlbumHeader extends StatefulWidget {
   final String spotifyUrl;
   final Function(double)? onRatingChanged;
   final Function(String)? onReviewSubmitted;
+  final bool loadRating; // Nueva propiedad para controlar si se carga la calificación
 
   const AlbumHeader({
     Key? key,
@@ -29,6 +31,7 @@ class AlbumHeader extends StatefulWidget {
     required this.spotifyUrl,
     this.onRatingChanged,
     this.onReviewSubmitted,
+    this.loadRating = true, // Por defecto, cargar las calificaciones
   }) : super(key: key);
 
   @override
@@ -44,15 +47,24 @@ class _AlbumHeaderState extends State<AlbumHeader> {
   // Para la reseña
   final TextEditingController _reviewController = TextEditingController();
   final int _maxReviewLength = 100;
-  
   @override
   void initState() {
     super.initState();
     _currentRating = widget.rating;
     _ratingService = SearchService();
     
-    // Cargar calificación actual si existe
-    _loadCurrentRating();
+    // Verificar si hay calificación en caché antes de cargar
+    final cachedRating = RatingCache().getAlbumRating(widget.albumId);
+    if (cachedRating != null) {
+      _currentRating = cachedRating;
+      debugPrint('[CACHE] Using cached album rating for UI: ${widget.albumId} - $cachedRating');
+    }
+    // Cargar calificación del servidor solo si está habilitado y no tenemos caché
+    else if (widget.loadRating) {
+      _loadCurrentRating();
+    } else {
+      debugPrint('[DEBUG] Album rating loading skipped for: ${widget.albumId}');
+    }
   }
     Future<void> _loadCurrentRating() async {
     if (widget.albumId.isEmpty) return;
@@ -180,6 +192,11 @@ class _AlbumHeaderState extends State<AlbumHeader> {
                                       _currentRating = newRating;
                                     });
                                     
+                                    // Guardar inmediatamente en caché local como calificación provisional
+                                    // Esto permite que la calificación persista durante el scroll
+                                    RatingCache().setAlbumRating(widget.albumId, newRating);
+                                    debugPrint('[CACHE] Provisional album rating cached: ${widget.albumId} - $newRating');
+                                    
                                     // Cancelar timer previo si existe
                                     _debounceTimer?.cancel();
                                     
@@ -229,12 +246,15 @@ class _AlbumHeaderState extends State<AlbumHeader> {
                                         ),
                                         padding: EdgeInsets.zero,
                                         constraints: const BoxConstraints(),                                        onPressed: () async {
+                                          // Guardar en caché inmediatamente para persistencia local
+                                          RatingCache().setAlbumRating(widget.albumId, _currentRating);
+                                          
                                           // Enviar la calificación al servidor cuando se confirma
                                           final success = await _ratingService.rateAlbum(widget.albumId, _currentRating);
                                           
                                           // Always treat as successful for now while backend is implemented
                                           // This gives a better user experience instead of showing errors
-                                          debugPrint('Album rated: ${widget.albumId} - $_currentRating (success status: $success)');
+                                          debugPrint('[RATING] Album rated: ${widget.albumId} - $_currentRating (success: $success, cached locally)');
                                           
                                           // Always show success message (in English)
                                           if (context.mounted) {

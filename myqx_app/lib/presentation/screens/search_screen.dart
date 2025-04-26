@@ -3,11 +3,13 @@ import 'package:provider/provider.dart';
 import 'package:myqx_app/core/constants/corporative_colors.dart';
 import 'package:myqx_app/core/services/spotify_search_service.dart';
 import 'package:myqx_app/core/services/search_service.dart';
+import 'package:myqx_app/core/utils/rating_manager.dart';
+import 'package:myqx_app/core/utils/scroll_optimizer.dart';
 import 'package:myqx_app/presentation/providers/navigation_provider.dart';
 import 'package:myqx_app/presentation/widgets/cards/album_header.dart';
 import 'package:myqx_app/presentation/widgets/general/gradient_background.dart';
 import 'package:myqx_app/presentation/widgets/general/user_header.dart';
-import 'package:myqx_app/presentation/widgets/cards/album_track_card.dart';
+import 'package:myqx_app/presentation/widgets/cards/album_track_card.dart' show AlbumTrackCard;
 
 
 class SearchScreen extends StatefulWidget {
@@ -42,22 +44,52 @@ class _SearchScreenState extends State<SearchScreen> {
     
     debugPrint('[DEBUG] Search screen initialized with cached services');
   }
-    @override
+      @override
   void dispose() {
     // We don't clear caches here, as they're intended to persist between screen visits
     // Only clean up controller and listener references
     _searchController.dispose();
     _searchService.removeListener(_onSearchResultsChanged);
-    debugPrint('[DEBUG] Search screen disposed (caches preserved)');
+    
+    // Forzar la persistencia de calificaciones en almacenamiento local
+    RatingManager().persistRatings();
+    
+    debugPrint('[DEBUG] Search screen disposed (ratings persisted and caches preserved)');
     super.dispose();
   }
   
   void _onSearchResultsChanged() {
     if (mounted) {
       setState(() {}); // Refresh UI when search results change
+      
+      // Precargar calificaciones para los resultados de búsqueda
+      _precacheRatings();
     }
   }
-    void _performSearch() {
+  
+  /// Precargar calificaciones para los resultados de la búsqueda
+  void _precacheRatings() {
+    final albums = _searchService.albums;
+    final tracks = _searchService.tracks;
+    
+    if (albums.isNotEmpty) {
+      // Crear lista de IDs de álbumes
+      final albumIds = albums.map((album) => album.id).toList();
+      
+      // Precargar calificaciones en segundo plano
+      RatingManager().preloadAlbumRatings(albumIds);
+    }
+    
+    if (tracks.isNotEmpty) {
+      // Crear lista de IDs de canciones
+      final trackIds = tracks.map((track) => track.id).toList();
+      
+      // Precargar calificaciones en segundo plano
+      RatingManager().preloadTrackRatings(trackIds);
+    }
+  }
+  
+  void _performSearch() {
     final query = _searchController.text.trim();
     if (query.isEmpty) return;
     
@@ -97,106 +129,106 @@ class _SearchScreenState extends State<SearchScreen> {
       appBar: const UserHeader(),
       body: GradientBackground(
         child: Column(
-            children: [
-              // Search bar
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 20, 16, 4),
-                child: TextField(
-                  controller: _searchController,
-                  decoration: InputDecoration(
-                    hintText: 'Search for tracks or albums...',
-                    hintStyle: TextStyle(color: Colors.white.withOpacity(0.2)),
-                    filled: true,
-                    fillColor: CorporativeColors.blackColor,
-                    prefixIcon: const Icon(Icons.search, color: CorporativeColors.mainColor),
-                    suffixIcon: _searchController.text.isNotEmpty
-                        ? IconButton(
-                            icon: const Icon(Icons.clear, color: CorporativeColors.mainColor),
-                            onPressed: () {
-                              _searchController.clear();
-                              _searchService.clearResults();
-                              setState(() {
-                                _showResults = false;
-                              });
-                            },
-                          )
-                        : null,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(30),
-                      borderSide: const BorderSide(color: CorporativeColors.mainColor, width: 1.5),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(30),
-                      borderSide: const BorderSide(color: CorporativeColors.mainColor, width: 1.5),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(30),
-                      borderSide: const BorderSide(color: CorporativeColors.mainColor, width: 2.0),
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(vertical: 4),
+          children: [
+            // Search bar
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 20, 16, 4),
+              child: TextField(
+                controller: _searchController,
+                decoration: InputDecoration(
+                  hintText: 'Search for tracks or albums...',
+                  hintStyle: TextStyle(color: Colors.white.withOpacity(0.2)),
+                  filled: true,
+                  fillColor: CorporativeColors.blackColor,
+                  prefixIcon: const Icon(Icons.search, color: CorporativeColors.mainColor),
+                  suffixIcon: _searchController.text.isNotEmpty
+                      ? IconButton(
+                          icon: const Icon(Icons.clear, color: CorporativeColors.mainColor),
+                          onPressed: () {
+                            _searchController.clear();
+                            _searchService.clearResults();
+                            setState(() {
+                              _showResults = false;
+                            });
+                          },
+                        )
+                      : null,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(30),
+                    borderSide: const BorderSide(color: CorporativeColors.mainColor, width: 1.5),
                   ),
-                  style: const TextStyle(color: Colors.white),
-                  onSubmitted: (_) => _performSearch(),
-                  textInputAction: TextInputAction.search,
-                  onChanged: (value) {
-                    setState(() {});
-                  },
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(30),
+                    borderSide: const BorderSide(color: CorporativeColors.mainColor, width: 1.5),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(30),
+                    borderSide: const BorderSide(color: CorporativeColors.mainColor, width: 2.0),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(vertical: 4),
                 ),
+                style: const TextStyle(color: Colors.white),
+                onSubmitted: (_) => _performSearch(),
+                textInputAction: TextInputAction.search,
+                onChanged: (value) {
+                  setState(() {});
+                },
               ),
-              
-              // Search filters/tabs
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-                child: Row(
-                  children: [
+            ),
+            
+            // Search filters/tabs
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+              child: Row(
+                children: [
+                  GestureDetector(
+                    onTap: () => setState(() => _filterAlbums = !_filterAlbums),
+                    child: _buildFilterChip('Albums', _filterAlbums),
+                  ),
+                  const SizedBox(width: 8),
+                  GestureDetector(
+                    onTap: () => setState(() => _filterTracks = !_filterTracks),
+                    child: _buildFilterChip('Tracks', _filterTracks),
+                  ),
+                  const Spacer(),
+                  if (_searchController.text.isNotEmpty)
                     GestureDetector(
-                      onTap: () => setState(() => _filterAlbums = !_filterAlbums),
-                      child: _buildFilterChip('Albums', _filterAlbums),
+                      onTapDown: (_) => setState(() => _isSearchPressed = true),
+                      onTapUp: (_) {
+                        setState(() => _isSearchPressed = false);
+                        _performSearch();
+                      },
+                      onTapCancel: () => setState(() => _isSearchPressed = false),
+                      child: _buildSearchButton(),
                     ),
-                    const SizedBox(width: 8),
-                    GestureDetector(
-                      onTap: () => setState(() => _filterTracks = !_filterTracks),
-                      child: _buildFilterChip('Tracks', _filterTracks),
-                    ),
-                    const Spacer(),
-                    if (_searchController.text.isNotEmpty)
-                      GestureDetector(
-                        onTapDown: (_) => setState(() => _isSearchPressed = true),
-                        onTapUp: (_) {
-                          setState(() => _isSearchPressed = false);
-                          _performSearch();
-                        },
-                        onTapCancel: () => setState(() => _isSearchPressed = false),
-                        child: _buildSearchButton(),
-                      ),
-                  ],
+                ],
+              ),
+            ),
+            
+            // Results or initial state
+            if (_searchService.isLoading)
+              const Expanded(
+                child: Center(
+                  child: CircularProgressIndicator(
+                    color: CorporativeColors.mainColor,
+                  ),
                 ),
-              ),
-              
-              // Results or initial state
-              if (_searchService.isLoading)
-                const Expanded(
-                  child: Center(
-                    child: CircularProgressIndicator(
-                      color: CorporativeColors.mainColor,
-                    ),
+              )
+            else if (_searchService.errorMessage != null)
+              Expanded(
+                child: Center(
+                  child: Text(
+                    'Error: ${_searchService.errorMessage}',
+                    style: const TextStyle(color: Colors.white),
                   ),
-                )
-              else if (_searchService.errorMessage != null)
-                Expanded(
-                  child: Center(
-                    child: Text(
-                      'Error: ${_searchService.errorMessage}',
-                      style: const TextStyle(color: Colors.white),
-                    ),
-                  ),
-                )
-              else if (_showResults)
-                _buildSearchResults()
-              else
-                _buildInitialState(),
-            ],
-          ),
+                ),
+              )
+            else if (_showResults)
+              _buildSearchResults()
+            else
+              _buildInitialState(),
+          ],
+        ),
       ),
     );
   }
@@ -225,7 +257,7 @@ class _SearchScreenState extends State<SearchScreen> {
   Widget _buildSearchButton() {
     return AnimatedContainer(
       duration: const Duration(milliseconds: 150),
-      padding: EdgeInsets.symmetric(
+      padding: const EdgeInsets.symmetric(
         horizontal: 16, 
         vertical: 6
       ),
@@ -277,91 +309,103 @@ class _SearchScreenState extends State<SearchScreen> {
     }
     
     return Expanded(
-      child: ListView(
-        padding: const EdgeInsets.fromLTRB(10, 16, 10, 16),
-        children: [
-          // Albums section
-          if (albums.isNotEmpty && _filterAlbums) ...[
-            const Padding(
-              padding: EdgeInsets.only(bottom: 12, left: 10),
-              child: Text(
-                'Albums',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
+      child: NotificationListener<ScrollNotification>(
+        onNotification: (ScrollNotification notification) {
+          // Detectar cuando el usuario está haciendo scroll
+          if (notification is ScrollUpdateNotification) {
+            ScrollOptimizer().notifyScrolling();
+          }
+          return false;
+        },
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(10, 16, 10, 16),
+          children: [
+            // Albums section
+            if (albums.isNotEmpty && _filterAlbums) ...[
+              const Padding(
+                padding: EdgeInsets.only(bottom: 12, left: 10),
+                child: Text(
+                  'Albums',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
-            ),
-            // CAMBIO AQUÍ: Envolver en GestureDetector para navegación por Provider
-            ...albums.map((album) => Padding(
-              padding: const EdgeInsets.only(bottom: 16),
-              child: GestureDetector(
-                onTap: () {
-                  final navProvider = Provider.of<NavigationProvider>(context, listen: false);
-                  navProvider.navigateToAlbumById(context, album.id);
-                },
-                child: AlbumHeader(
-                  albumId: album.id,
-                  albumTitle: album.name,
-                  artist: album.artistName,
-                  imageUrl: album.coverUrl,
-                  releaseYear: _extractYear(album.spotifyUrl),
-                  rating: 0.0,
-                  spotifyUrl: album.spotifyUrl,
-                  onRatingChanged: (rating) {
-                    // Handle rating change
-                  },
-                ),
-              ),
-            )),
-            const SizedBox(height: 24),
-          ],
-          
-          // Tracks section
-          if (tracks.isNotEmpty && _filterTracks) ...[
-            const Padding(
-              padding: EdgeInsets.only(bottom: 12, left: 10),
-              child: Text(
-                'Tracks',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-            // CAMBIO AQUÍ: Usar AlbumTrackCard en lugar de ListTile
-            ...tracks.asMap().entries.map((entry) {
-              final index = entry.key;
-              final track = entry.value;
-              
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 8),
+              // CAMBIO AQUÍ: Envolver en GestureDetector para navegación por Provider
+              ...albums.map((album) => Padding(
+                padding: const EdgeInsets.only(bottom: 16),
                 child: GestureDetector(
                   onTap: () {
-                    if (track.albumId != null && track.albumId!.isNotEmpty) {
-                      final navProvider = Provider.of<NavigationProvider>(context, listen: false);
-                      navProvider.navigateToAlbumById(context, track.albumId!);
-                    }
+                    final navProvider = Provider.of<NavigationProvider>(context, listen: false);
+                    navProvider.navigateToAlbumById(context, album.id);
                   },
-                  child: AlbumTrackCard(
-                    trackNumber: index + 1,
-                    trackName: track.name,
-                    albumCoverUrl: track.imageUrl ?? '',
-                    spotifyUrl: track.spotifyUrl,
-                    songId: track.id,
-                    rating: 0.0, // Calificación inicial
+                  child: AlbumHeader(
+                    albumId: album.id,
+                    albumTitle: album.name,
+                    artist: album.artistName,
+                    imageUrl: album.coverUrl,
+                    releaseYear: _extractYear(album.spotifyUrl),
+                    rating: 0.0,
+                    spotifyUrl: album.spotifyUrl,
+                    // No necesitamos cargar desde el servidor, ya que usamos RatingCache
+                    loadRating: false, 
                     onRatingChanged: (rating) {
-                      // Manejar cambio de calificación
-                      debugPrint('Nueva calificación para ${track.name}: $rating');
+                      // Handle rating change
                     },
                   ),
                 ),
-              );
-            }),
+              )),
+              const SizedBox(height: 24),
+            ],
+            
+            // Tracks section
+            if (tracks.isNotEmpty && _filterTracks) ...[
+              const Padding(
+                padding: EdgeInsets.only(bottom: 12, left: 10),
+                child: Text(
+                  'Tracks',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              // CAMBIO AQUÍ: Usar AlbumTrackCard en lugar de ListTile
+              ...tracks.asMap().entries.map((entry) {
+                final index = entry.key;
+                final track = entry.value;
+                
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: GestureDetector(
+                    onTap: () {
+                      if (track.albumId != null && track.albumId!.isNotEmpty) {
+                        final navProvider = Provider.of<NavigationProvider>(context, listen: false);
+                        navProvider.navigateToAlbumById(context, track.albumId!);
+                      }
+                    },
+                    child: AlbumTrackCard(
+                      trackNumber: index + 1,
+                      trackName: track.name,
+                      albumCoverUrl: track.imageUrl ?? '',
+                      spotifyUrl: track.spotifyUrl,
+                      songId: track.id,
+                      rating: 0.0, // Calificación inicial
+                      loadRating: false, // No cargar calificaciones individualmente desde el servidor en la pantalla de búsqueda
+                      onRatingChanged: (rating) {
+                        // Manejar cambio de calificación
+                        debugPrint('Nueva calificación para ${track.name}: $rating');
+                      },
+                    ),
+                  ),
+                );
+              }),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }

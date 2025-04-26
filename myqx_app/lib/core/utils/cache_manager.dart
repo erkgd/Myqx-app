@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:myqx_app/core/services/search_service.dart';
 import 'package:myqx_app/core/services/spotify_search_service.dart';
+import 'package:myqx_app/core/utils/rating_cache.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 // App version constant for cache invalidation
@@ -45,12 +46,17 @@ class CacheManager {
       debugPrint('[ERROR] Failed to clear search caches: $e');
     }
   }
-    /// Clear only ratings caches
+  /// Clear only ratings caches
   Future<void> clearRatingCaches() async {
     try {
+      // Limpiar la caché de calificaciones en SearchService
       final searchService = SearchService();
       searchService.clearRatingsCache();
-      debugPrint('[DEBUG] Rating caches cleared');
+      
+      // Limpiar también la caché centralizada de calificaciones
+      RatingCache().clear();
+      
+      debugPrint('[DEBUG] All rating caches cleared');
     } catch (e) {
       debugPrint('[ERROR] Failed to clear rating caches: $e');
     }
