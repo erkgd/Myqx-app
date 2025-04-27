@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:myqx_app/core/http/api_client.dart';
 import 'package:myqx_app/core/storage/secure_storage.dart';
+import 'package:myqx_app/core/services/spotify_album_service.dart';
+import 'package:myqx_app/core/services/spotify_search_service.dart';
 import 'package:myqx_app/data/models/feed_item.dart';
 
 /// Servicio para gestionar el feed de contenido calificado
@@ -50,17 +52,25 @@ class BroadcastService extends ChangeNotifier {
       
       // Obtener el ID del usuario
       final userId = await _secureStorage.getUserId();
-      
-      // Realizar solicitud al BFF
+        // Realizar solicitud al BFF
       final response = await _apiClient.get(
         '/feed?limit=$limit&offset=$offset${userId != null ? '&user_id=$userId' : ''}'
       );
       
-      // Procesar respuesta
-      if (response['feed'] != null) {
-        final List<dynamic> feedData = response['feed'];
-        
-        _feedItems = feedData.map((item) => FeedItem.fromJson(item)).toList();
+      debugPrint('[FEED] Respuesta del servidor: ${response.toString().substring(0, 500)}...(truncado)');
+      
+      // Procesar respuesta - Verificar las dos posibles estructuras: 'items' o 'data'
+      List<dynamic>? feedData;
+      if (response['items'] != null) {
+        feedData = response['items'];
+      } else if (response['data'] != null) {
+        feedData = response['data'];
+      }
+      
+      if (feedData != null && feedData.isNotEmpty) {
+        // Generar elementos del feed y obtener datos adicionales si es necesario
+        final items = await _processRawFeedItems(feedData);
+        _feedItems = items;
         
         debugPrint('[FEED] Obtenidos ${_feedItems.length} elementos del feed');
         return _feedItems;
@@ -80,6 +90,94 @@ class BroadcastService extends ChangeNotifier {
     }
   }
   
+  /// Procesa los elementos crudos del feed y obtiene información adicional si es necesario
+  Future<List<FeedItem>> _processRawFeedItems(List<dynamic> rawItems) async {
+    List<FeedItem> processedItems = [];
+    final albumService = SpotifyAlbumService();
+    final searchService = SpotifySearchService();
+    
+    for (var item in rawItems) {
+      try {        // Si los campos esenciales están nulos, debemos obtenerlos
+        String? title = item['title'];
+        String? artist = item['artist'];
+        String? imageUrl = item['imageUrl'];
+        final String contentId = item['contentId'] ?? '';
+        final String contentType = item['contentType'] ?? 'album';
+        // El spotifyId puede ser útil como alternativa si el contentId está vacío
+        final String spotifyId = item['spotifyId'] ?? '';
+        final String idToUse = contentId.isNotEmpty ? contentId : spotifyId.replaceAll('spotify:album:', '').replaceAll('spotify:track:', '');
+        
+        // Si tenemos todos los datos, simplemente usar el elemento directamente
+        if (title != null && artist != null && imageUrl != null) {
+          processedItems.add(FeedItem.fromJson(item));
+          continue;
+        }
+          // Si no, recuperar los datos faltantes desde la API de Spotify
+        if (idToUse.isNotEmpty) {
+          // Si es un álbum
+          if (contentType == 'album') {
+            try {
+              final albumDetails = await albumService.getAlbumDetails(idToUse);
+              
+              // Actualizar los datos faltantes
+              title = albumDetails.name;
+              artist = albumDetails.artistName;
+              imageUrl = albumDetails.coverUrl;
+              
+              debugPrint('[FEED] Completados datos de álbum: $title por $artist');
+            } catch (e) {
+              debugPrint('[FEED][ERROR] Error al obtener datos del álbum $contentId: $e');
+            }
+          } 
+          // Si es una canción, usamos searchService para buscar por ID
+          else if (contentType == 'track') {
+            try {
+              // Realizar una búsqueda del track usando el ID como query
+              await searchService.search('track:$contentId', type: 'track');
+              
+              if (searchService.tracks.isNotEmpty) {
+                final trackDetails = searchService.tracks.first;
+                
+                // Actualizar los datos faltantes
+                title = trackDetails.name;
+                artist = trackDetails.artistName;
+                imageUrl = trackDetails.imageUrl;
+                
+                debugPrint('[FEED] Completados datos de canción: $title por $artist');
+              }
+            } catch (e) {
+              debugPrint('[FEED][ERROR] Error al obtener datos de la canción $contentId: $e');
+            }
+          }
+        }
+        
+        // Crear elemento con los datos originales pero actualizando los que faltaban
+        final processedItem = FeedItem(
+          id: item['id'] ?? '',
+          contentId: contentId,
+          contentType: contentType,
+          title: title ?? 'Título desconocido',
+          artist: artist ?? 'Artista desconocido',
+          imageUrl: imageUrl ?? 'https://placeholder.com/400',
+          rating: (item['rating'] as num?)?.toDouble() ?? 0.0,
+          review: item['review'],
+          userId: item['userId'] ?? '',
+          username: item['username'] ?? '',
+          userImageUrl: item['userImage'] ?? '',
+          timestamp: item['date'] != null 
+            ? DateTime.parse(item['date']) 
+            : DateTime.now(),
+        );
+        
+        processedItems.add(processedItem);
+      } catch (e) {
+        debugPrint('[FEED][ERROR] Error al procesar elemento del feed: $e');
+      }
+    }
+    
+    return processedItems;
+  }
+  
   /// Obtiene el feed de calificaciones de un usuario específico
   /// 
   /// [userId] - ID del usuario del cual obtener las calificaciones
@@ -96,10 +194,11 @@ class BroadcastService extends ChangeNotifier {
       );
       
       // Procesar respuesta
-      if (response['feed'] != null) {
-        final List<dynamic> feedData = response['feed'];
+      if (response['items'] != null) {
+        final List<dynamic> feedData = response['items'];
         
-        final userFeed = feedData.map((item) => FeedItem.fromJson(item)).toList();
+        // Procesar elementos del feed con el mismo método que usamos para el feed general
+        final userFeed = await _processRawFeedItems(feedData);
         
         debugPrint('[FEED] Obtenidos ${userFeed.length} elementos del feed de usuario $userId');
         return userFeed;
