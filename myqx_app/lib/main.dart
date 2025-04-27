@@ -3,6 +3,7 @@ import 'package:myqx_app/core/constants/corporative_colors.dart';
 import 'package:myqx_app/core/utils/cache_manager.dart';
 import 'package:myqx_app/core/services/audio_player_service.dart';
 import 'package:myqx_app/core/services/rating_service.dart';
+import 'package:myqx_app/core/services/broadcast_service.dart';
 import 'package:myqx_app/presentation/providers/navigation_provider.dart';
 import 'package:myqx_app/presentation/providers/auth_provider.dart';
 import 'package:myqx_app/presentation/providers/spotify_auth_provider.dart';
@@ -15,8 +16,7 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
   // Check app version and clear caches if needed
-  await CacheManager().checkAndClearCachesOnVersionChange();    
-  runApp(
+  await CacheManager().checkAndClearCachesOnVersionChange();    runApp(
     MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => NavigationProvider()),
@@ -24,6 +24,7 @@ void main() async {
         ChangeNotifierProvider(create: (_) => SpotifyAuthProvider()),
         ChangeNotifierProvider(create: (_) => AudioPlayerService()),
         ChangeNotifierProvider(create: (_) => RatingService()),
+        ChangeNotifierProvider(create: (_) => BroadcastService()),
       ],
       child: const MyApp(),
     ),

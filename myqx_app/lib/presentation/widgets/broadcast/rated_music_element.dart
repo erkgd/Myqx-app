@@ -12,8 +12,8 @@ class RatedMusic extends StatelessWidget {
   final String imageUrl;
   final String artist;
   final String musicname;
-  final String review;
-  final double rating;
+  final String? review;
+  final int rating;
   final String user;
 
   const RatedMusic({
@@ -21,7 +21,7 @@ class RatedMusic extends StatelessWidget {
     required this.imageUrl,
     required this.artist,
     required this.musicname,
-    required this.review,
+    this.review,
     required this.rating,
     required this.user,
   });
@@ -53,7 +53,7 @@ class RatedMusic extends StatelessWidget {
                         mainAxisAlignment: MainAxisAlignment.end,
                         children: [
                           UserCircle(
-                            username: 'erkgd', 
+                            username: user, 
                             imageUrl: imageUrl, 
                             imageSize: 24, 
                             fontSize: 14
@@ -63,11 +63,12 @@ class RatedMusic extends StatelessWidget {
                       
                       const SizedBox(height: 8),
                       
-                      // Review con padding añadido
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 10.0),
-                        child: Review(reviewText: review, fontSize: 11),
-                      ),
+                      // Review con padding añadido - Mostrar solo si hay una review
+                      if (review != null && review!.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 10.0),
+                          child: Review(reviewText: review!, fontSize: 11),
+                        ),
                     ],
                   ),
                 ),
@@ -103,8 +104,8 @@ class RatedMusic extends StatelessWidget {
                 
                 const SizedBox(width: 40), // Este espacio se mantiene igual
                 
-                // Rating - SE MANTIENE DONDE ESTABA
-                Rating(rating: rating, itemSize: 14),
+                // Rating - Convertir de int a double para el widget
+                Rating(rating: rating.toDouble(), itemSize: 14),
               ],
             ),
           ],

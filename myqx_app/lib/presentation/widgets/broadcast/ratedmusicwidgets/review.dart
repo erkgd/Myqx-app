@@ -16,7 +16,7 @@ class Review extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        return Container(
+        return SizedBox(
           width: constraints.maxWidth,
           child: Text(
             reviewText,
