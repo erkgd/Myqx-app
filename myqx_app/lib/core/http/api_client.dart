@@ -198,4 +198,100 @@ class ApiClient {
       }
     }
   }
+
+  /// Método especializado para enviar una calificación al servidor
+  /// 
+  /// [contentId] - ID del contenido (track o album)
+  /// [contentType] - tipo de contenido ('track' o 'album')
+  /// [rating] - valor de calificación (0.0 a 5.0)
+  /// [userId] - ID del usuario que califica
+  Future<dynamic> submitRating({
+    required String contentId,
+    required String contentType,
+    required double rating,
+    required String userId,
+  }) async {
+    // Validar el tipo de contenido
+    if (contentType != 'track' && contentType != 'album') {
+      throw ArgumentError('contentType debe ser "track" o "album", recibido: $contentType');
+    }
+    
+    // Validar calificación en el rango correcto
+    if (rating < 0 || rating > 5) {
+      throw ArgumentError('rating debe estar entre 0 y 5, recibido: $rating');
+    }
+    
+    final body = {
+      'content_id': contentId,
+      'content_type': contentType,
+      'rating': rating,
+      'user_id': userId,
+      'timestamp': DateTime.now().toIso8601String(),
+    };
+    
+    debugPrint('[RATING][API] Enviando calificación - Tipo: $contentType, ID: $contentId, Rating: $rating');
+    
+    return await post('/ratings/submit', body: body);
+  }
+  
+  /// Método especializado para obtener una calificación del servidor
+  ///
+  /// [contentId] - ID del contenido (track o album)
+  /// [contentType] - tipo de contenido ('track' o 'album')
+  /// [userId] - ID del usuario
+  Future<double?> getRating({
+    required String contentId,
+    required String contentType,
+    required String userId,
+  }) async {
+    // Validar el tipo de contenido
+    if (contentType != 'track' && contentType != 'album') {
+      throw ArgumentError('contentType debe ser "track" o "album", recibido: $contentType');
+    }
+    
+    debugPrint('[RATING][API] Obteniendo calificación - Tipo: $contentType, ID: $contentId');
+    
+    try {
+      final response = await get(
+        '/ratings/get?content_id=$contentId&content_type=$contentType&user_id=$userId'
+      );
+      
+      return response['rating']?.toDouble();
+    } catch (e) {
+      debugPrint('[RATING][API] Error al obtener calificación: $e');
+      return null;
+    }
+  }
+  
+  /// Método especializado para eliminar una calificación del servidor
+  ///
+  /// [contentId] - ID del contenido (track o album)
+  /// [contentType] - tipo de contenido ('track' o 'album')
+  /// [userId] - ID del usuario
+  Future<bool> deleteRating({
+    required String contentId,
+    required String contentType,
+    required String userId,
+  }) async {
+    // Validar el tipo de contenido
+    if (contentType != 'track' && contentType != 'album') {
+      throw ArgumentError('contentType debe ser "track" o "album", recibido: $contentType');
+    }
+    
+    debugPrint('[RATING][API] Eliminando calificación - Tipo: $contentType, ID: $contentId');
+    
+    try {
+      // Para DELETE con body, usamos post con un endpoint que indique eliminación
+      final response = await post('/ratings/delete', body: {
+        'content_id': contentId,
+        'content_type': contentType,
+        'user_id': userId,
+      });
+      
+      return response['success'] ?? false;
+    } catch (e) {
+      debugPrint('[RATING][API] Error al eliminar calificación: $e');
+      return false;
+    }
+  }
 }

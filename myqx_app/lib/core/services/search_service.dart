@@ -43,24 +43,23 @@ class SearchService extends ChangeNotifier {
 
       _isLoading = true;
       _errorMessage = null;
-      notifyListeners();
-
-      final response = await _apiClient.post('/albums/rate', body: {
-        'album_id': albumId,
+      notifyListeners();      final response = await _apiClient.post('/ratings/submit', body: {
+        'content_id': albumId,
+        'content_type': 'album',  // Identificador explícito de tipo
         'rating': rating,
         'user_id': userId,  // Include user ID in the request
+        'timestamp': DateTime.now().toIso8601String(), // Añadir timestamp para auditoría
       });
       
-      debugPrint('[DEBUG] Album rating sent to server: $albumId - $rating by user $userId');
-      debugPrint('[DEBUG] Server response: ${response.toString()}');
+      debugPrint('[RATING][ALBUM] Rating sent to server: $albumId - $rating by user $userId');
+      debugPrint('[RATING][ALBUM] Server response: ${response.toString()}');
       
       // Incluso si el servidor devuelve un error, mantenemos la calificación en caché
       // para mejorar la experiencia de usuario
       
-      return response['success'] ?? false;
-    } catch (e) {
+      return response['success'] ?? false;    } catch (e) {
       _errorMessage = 'Error rating album: ${e.toString()}';
-      debugPrint('[ERROR] $_errorMessage');
+      debugPrint('[ERROR][ALBUM] $_errorMessage');
       // La calificación ya se guardó en caché, así que el error del servidor no afecta la experiencia de usuario
       return false;
     } finally {
@@ -93,24 +92,23 @@ class SearchService extends ChangeNotifier {
 
       _isLoading = true;
       _errorMessage = null;
-      notifyListeners();
-
-      final response = await _apiClient.post('/tracks/rate', body: {
-        'track_id': songId,
+      notifyListeners();      final response = await _apiClient.post('/ratings/submit', body: {
+        'content_id': songId,
+        'content_type': 'track',  // Identificador explícito de tipo
         'rating': rating,
         'user_id': userId,  // Include user ID in the request
+        'timestamp': DateTime.now().toIso8601String(), // Añadir timestamp para auditoría
       });
       
-      debugPrint('[DEBUG] Track rating sent to server: $songId - $rating by user $userId');
-      debugPrint('[DEBUG] Server response: ${response.toString()}');
+      debugPrint('[RATING][TRACK] Rating sent to server: $songId - $rating by user $userId');
+      debugPrint('[RATING][TRACK] Server response: ${response.toString()}');
       
       // Incluso si el servidor devuelve un error, mantenemos la calificación en caché
       // para mejorar la experiencia de usuario
       
-      return response['success'] ?? false;
-    } catch (e) {
+      return response['success'] ?? false;    } catch (e) {
       _errorMessage = 'Error rating track: ${e.toString()}';
-      debugPrint('[ERROR] $_errorMessage');
+      debugPrint('[ERROR][TRACK] $_errorMessage');
       // La calificación ya se guardó en caché, así que el error del servidor no afecta la experiencia de usuario
       return false;
     } finally {
@@ -137,10 +135,9 @@ class SearchService extends ChangeNotifier {
         debugPrint('[ERROR] User ID not available for getting album rating');
         return null;
       }
-      
-      debugPrint('[DEBUG] Fetching album rating from server: $albumId');
-      // Include user_id as a query parameter
-      final response = await _apiClient.get('/albums/$albumId/rating?user_id=$userId');
+        debugPrint('[RATING][ALBUM] Fetching rating from server: $albumId');
+      // Usar el endpoint unificado con parámetros de tipo de contenido
+      final response = await _apiClient.get('/ratings/get?content_id=$albumId&content_type=album&user_id=$userId');
       final rating = response['rating']?.toDouble();
       
       // Si se obtuvo una calificación, guardarla en caché
@@ -151,9 +148,8 @@ class SearchService extends ChangeNotifier {
         RatingCache().setAlbumRating(albumId, null);
       }
       
-      return rating;
-    } catch (e) {
-      debugPrint('[ERROR] Error getting album rating: ${e.toString()}');
+      return rating;    } catch (e) {
+      debugPrint('[ERROR][ALBUM] Error getting rating: ${e.toString()}');
       // Guardamos el error en caché para evitar peticiones repetidas que sabemos que van a fallar
       RatingCache().setAlbumRating(albumId, null);
       return null;
@@ -178,10 +174,9 @@ class SearchService extends ChangeNotifier {
         debugPrint('[ERROR] User ID not available for getting track rating');
         return null;
       }
-      
-      debugPrint('[DEBUG] Fetching track rating from server: $songId');
-      // Include user_id as a query parameter
-      final response = await _apiClient.get('/tracks/$songId/rating?user_id=$userId');
+        debugPrint('[RATING][TRACK] Fetching rating from server: $songId');
+      // Usar el endpoint unificado con parámetros de tipo de contenido
+      final response = await _apiClient.get('/ratings/get?content_id=$songId&content_type=track&user_id=$userId');
       final rating = response['rating']?.toDouble();
       
       // Si se obtuvo una calificación, guardarla en caché
@@ -192,18 +187,18 @@ class SearchService extends ChangeNotifier {
         RatingCache().setTrackRating(songId, null);
       }
       
-      return rating;
-    } catch (e) {
-      debugPrint('[ERROR] Error getting track rating: ${e.toString()}');
+      return rating;    } catch (e) {
+      debugPrint('[ERROR][TRACK] Error getting rating: ${e.toString()}');
       // Guardamos el error en caché para evitar peticiones repetidas que sabemos que van a fallar
       RatingCache().setTrackRating(songId, null);
       return null;
     }
   }
-
   /// Limpia la caché de calificaciones
   void clearRatingsCache() {
     RatingCache().clear();
-    debugPrint('[DEBUG] Ratings cache cleared');
+    debugPrint('[RATING][CACHE] All ratings cache cleared');
   }
+  
+  
 }
