@@ -1,3 +1,4 @@
+import 'dart:math' as Math;
 import 'package:flutter/foundation.dart';
 import 'package:myqx_app/core/http/api_client.dart';
 import 'package:myqx_app/core/storage/secure_storage.dart';
@@ -128,12 +129,11 @@ class BroadcastService extends ChangeNotifier {
             } catch (e) {
               debugPrint('[FEED][ERROR] Error al obtener datos del álbum $contentId: $e');
             }
-          } 
-          // Si es una canción, usamos searchService para buscar por ID
+          }          // Si es una canción, usamos searchService para buscar por ID
           else if (contentType == 'track') {
             try {
               // Realizar una búsqueda del track usando el ID como query
-              await searchService.search('track:$contentId', type: 'track');
+              await searchService.search('track:$idToUse', type: 'track');
               
               if (searchService.tracks.isNotEmpty) {
                 final trackDetails = searchService.tracks.first;
@@ -187,16 +187,22 @@ class BroadcastService extends ChangeNotifier {
     try {
       _setLoading(true);
       _setError(null);
-      
-      // Realizar solicitud al BFF
+        // Realizar solicitud al BFF
       final response = await _apiClient.get(
         '/feed/user/$userId?limit=$limit&offset=$offset'
       );
       
-      // Procesar respuesta
+      debugPrint('[FEED] Respuesta del servidor (user feed): ${response.toString().substring(0, Math.min(500, response.toString().length))}...');
+      
+      // Procesar respuesta - Verificar las dos posibles estructuras: 'items' o 'data'
+      List<dynamic>? feedData;
       if (response['items'] != null) {
-        final List<dynamic> feedData = response['items'];
-        
+        feedData = response['items'];
+      } else if (response['data'] != null) {
+        feedData = response['data'];
+      }
+      
+      if (feedData != null && feedData.isNotEmpty) {
         // Procesar elementos del feed con el mismo método que usamos para el feed general
         final userFeed = await _processRawFeedItems(feedData);
         
