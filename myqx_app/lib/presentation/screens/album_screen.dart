@@ -1,8 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:myqx_app/presentation/widgets/general/user_header.dart';
 import 'package:myqx_app/presentation/widgets/cards/album_header.dart';
-import 'package:myqx_app/presentation/widgets/cards/album_track_card.dart' show AlbumTrackCard;
+import 'package:myqx_app/presentation/widgets/cards/album_track_card.dart';
 import 'package:myqx_app/core/services/spotify_album_service.dart'; 
+import 'package:myqx_app/core/services/audio_player_service.dart';
+
+// Track model for the album screen
+class AlbumTrackInfo {
+  final String name;
+  final String? previewUrl;
+  final String id;
+  
+  AlbumTrackInfo({required this.name, this.previewUrl, required this.id});
+}
 
 class AlbumScreen extends StatefulWidget {
   final String? albumId;
@@ -56,28 +67,36 @@ class _AlbumScreenState extends State<AlbumScreen> {
   late String _artist;
   late String _imageUrl;
   late String _releaseYear;
-  late double _rating;
-  late String _spotifyUrl;
-  late List<String> _trackList;
+  late double _rating;  late String _spotifyUrl;
+  
+  // Lista mejorada de pistas con previsualización
+  List<AlbumTrackInfo> _tracks = [];
+  
+  // Variable para almacenar la instancia del servicio de audio
+  AudioPlayerService? _audioPlayerService;
 
   @override
-void initState() {
-  super.initState();
-  
-  // Inicializar con los valores proporcionados
-  _albumTitle = widget.albumTitle;
-  _artist = widget.artist;
-  _imageUrl = widget.imageUrl;
-  _releaseYear = widget.releaseYear;
-  _rating = widget.rating;
-  _spotifyUrl = widget.spotifyUrl;
-  _trackList = widget.trackList;
-  
-  // Cargar secuencialmente (primero detalles, luego tracks si es necesario)
-  if (widget.albumId != null && widget.albumId!.isNotEmpty) {
-    _loadAllData();
+  void initState() {
+    super.initState();
+    
+    // Inicializar con los valores proporcionados
+    _albumTitle = widget.albumTitle;
+    _artist = widget.artist;
+    _imageUrl = widget.imageUrl;
+    _releaseYear = widget.releaseYear;
+    _rating = widget.rating;
+    _spotifyUrl = widget.spotifyUrl;
+    
+    // Inicializar la lista de pistas a partir de la lista de nombres
+    _tracks = widget.trackList.map((name) => 
+        AlbumTrackInfo(name: name, previewUrl: null, id: 'track_${widget.trackList.indexOf(name)}')
+    ).toList();
+    
+    // Cargar secuencialmente (primero detalles, luego tracks si es necesario)
+    if (widget.albumId != null && widget.albumId!.isNotEmpty) {
+      _loadAllData();
+    }
   }
-}
 
   Future<void> _loadAllData() async {
     // Usar try/catch general para manejar cualquier error
@@ -86,7 +105,7 @@ void initState() {
       await _loadAlbumDetails();
       
       // Si no hay tracks después de cargar detalles, intentar con tracks específicos
-      if (_trackList.isEmpty) {
+      if (_tracks.isEmpty) {
         debugPrint("⚠️ No se obtuvieron tracks de los detalles, cargando específicamente...");
         await _loadAlbumTracks();
       }
@@ -126,10 +145,16 @@ void initState() {
           _rating = albumDetails.rating ?? 0.0;
           _spotifyUrl = albumDetails.spotifyUrl;
           
-          // Si hay tracks en los detalles, usarlos
+          // Si hay tracks en los detalles, convertirlos al nuevo formato con previewUrl
           if (albumDetails.tracks != null && albumDetails.tracks!.isNotEmpty) {
-            _trackList = albumDetails.tracks!.map((t) => t.name).toList();
-            debugPrint("✅ Se asignaron ${_trackList.length} tracks de detalles");
+            _tracks = albumDetails.tracks!.map((track) => 
+                AlbumTrackInfo(
+                  name: track.name,
+                  previewUrl: track.previewUrl,
+                  id: track.id
+                )
+            ).toList();
+            debugPrint("✅ Se asignaron ${_tracks.length} tracks de detalles");
           }
           
           _isLoading = false;
@@ -158,8 +183,14 @@ void initState() {
       
       if (mounted && tracks.isNotEmpty) {
         setState(() {
-          _trackList = tracks.map((t) => t.name).toList();
-          debugPrint("e asignaron ${_trackList.length} tracks de endpoint específico");
+          _tracks = tracks.map((track) => 
+              AlbumTrackInfo(
+                name: track.name,
+                previewUrl: track.previewUrl,
+                id: track.id
+              )
+          ).toList();
+          debugPrint("✅ Se asignaron ${_tracks.length} tracks de endpoint específico");
         });
       }
     } catch (e) {
@@ -167,6 +198,7 @@ void initState() {
       // No mostrar este error al usuario si ya tenemos datos básicos del álbum
     }
   }
+
   String _extractYear(String releaseDate) {
     // Extraer el año de la fecha (formato YYYY-MM-DD)
     if (releaseDate.isNotEmpty && releaseDate.length >= 4) {
@@ -174,9 +206,30 @@ void initState() {
     }
     return '';
   }
+    // Método para obtener o crear la instancia de AudioPlayerService
+  AudioPlayerService _getAudioPlayerService() {
+    // Si ya tenemos una instancia, la devolvemos
+    if (_audioPlayerService != null) {
+      return _audioPlayerService!;
+    }
+    
+    // Si no, creamos una nueva instancia usando el singleton
+    _audioPlayerService = AudioPlayerService();
+    return _audioPlayerService!;
+  }
 
   @override
+  void dispose() {
+    // Asegurémonos de no tener memory leaks
+    _audioPlayerService = null;
+    super.dispose();
+  }
+    @override
   Widget build(BuildContext context) {
+    // Obtener el AudioPlayerService globalmente sin depender de Provider directamente
+    // Simplemente llamamos a _getAudioPlayerService() para asegurarnos que la instancia existe
+    _getAudioPlayerService();
+    
     // Mostrar indicador de carga mientras se recuperan los datos
     if (_isLoading) {
       return Scaffold(
@@ -202,15 +255,12 @@ void initState() {
       );
     }
     
-    // Mostrar contenido normal
     return Scaffold(
       backgroundColor: Colors.transparent,
       appBar: const UserHeader(),
       body: SingleChildScrollView(
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Widget separado para la cabecera del álbum
             AlbumHeader(
               albumId: widget.albumId ?? '',
               albumTitle: _albumTitle,
@@ -219,13 +269,13 @@ void initState() {
               releaseYear: _releaseYear,
               rating: _rating,
               spotifyUrl: _spotifyUrl,
-              
+              loadRating: false, // Ya cargamos el rating
+              onRatingChanged: (newRating) {
+                debugPrint('Nueva calificación para ${ _albumTitle}: $newRating');
+              },
             ),
-            
-            const SizedBox(height: 20),
-            
-            // Lista de tracks con widget separado para cada canción
-            ..._trackList.asMap().entries.map((entry) {
+            const SizedBox(height: 16),
+            ..._tracks.asMap().entries.map((entry) {
               final index = entry.key;
               final track = entry.value;
               
@@ -233,15 +283,16 @@ void initState() {
                 padding: const EdgeInsets.only(bottom: 1.0),
                 child: AlbumTrackCard(
                   trackNumber: index + 1,
-                  trackName: track,
+                  trackName: track.name,
                   albumCoverUrl: _imageUrl,
                   spotifyUrl: '$_spotifyUrl?track=${index+1}',
-                  songId: 'track_$index',
-                  rating: 4.0,
+                  songId: track.id,
+                  previewUrl: track.previewUrl,
+                  rating: 0.0,
                   onRatingChanged: (newRating) {
-                    print('Nueva calificación para $track: $newRating');
+                    debugPrint('Nueva calificación para ${track.name}: $newRating');
                   },
-                )
+                ),
               );
             }).toList(),
           ],

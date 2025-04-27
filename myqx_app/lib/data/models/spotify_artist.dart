@@ -1,5 +1,4 @@
 // filepath: lib/data/models/spotify_artist.dart
-import 'package:flutter/foundation.dart';
 
 class SpotifyArtist {
   final String id;

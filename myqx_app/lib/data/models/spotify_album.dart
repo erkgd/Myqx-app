@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:myqx_app/data/models/spotify_track.dart';
 
 class SpotifyAlbum {
@@ -43,6 +42,11 @@ class SpotifyAlbum {
         json['artists'][0] != null) {
       artistName = json['artists'][0]['name'] ?? 'Unknown Artist';
       artistId = json['artists'][0]['id'] ?? '';
+    }    // Procesar las pistas si están incluidas en la respuesta
+    List<SpotifyTrack>? tracksList;
+    if (json['tracks'] != null && json['tracks']['items'] != null) {
+      final items = json['tracks']['items'] as List;
+      tracksList = items.map((trackJson) => SpotifyTrack.fromJson(trackJson)).toList();
     }
 
     return SpotifyAlbum(
@@ -54,7 +58,7 @@ class SpotifyAlbum {
       releaseDate: json['release_date'] ?? '',
       spotifyUrl: json['external_urls']?['spotify'] ?? '',
       totalTracks: json['total_tracks'] ?? 0,
-      tracks: null,
+      tracks: tracksList,
       rating: null,
     );
   }

@@ -7,7 +7,7 @@ import 'package:myqx_app/presentation/screens/search_screen.dart';
 import 'package:myqx_app/presentation/screens/graph_screen.dart';
 import 'package:myqx_app/presentation/providers/navigation_provider.dart';
 import 'package:myqx_app/presentation/screens/unaffiliated_profile_screen.dart';
-
+import 'package:myqx_app/core/services/audio_player_service.dart';
 
 class NavbarRoutes {
   // Nombres de rutas para facilitar la navegación
@@ -39,38 +39,52 @@ class NavbarRoutes {
       const SearchScreen(),      // índice 3
       
       // AlbumScreen con parámetros dinámicos del provider
-      navProvider.currentAlbumId != null && navProvider.currentAlbumId!.isNotEmpty
-          ? (navProvider.currentAlbumTitle.isEmpty
-              // Si solo tenemos ID, usar constructor fromId
-              ? AlbumScreen.fromId(albumId: navProvider.currentAlbumId!)
-              // Si tenemos datos completos, usar el constructor normal
-              : AlbumScreen(
-                  albumId: navProvider.currentAlbumId,
-                  albumTitle: navProvider.currentAlbumTitle,
-                  artist: navProvider.currentArtist,
-                  imageUrl: navProvider.currentImageUrl,
-                  releaseYear: navProvider.currentReleaseYear,
-                  rating: navProvider.currentRating,
-                  trackList: navProvider.currentTrackList,
-                  spotifyUrl: navProvider.currentSpotifyUrl,
-                ))
-          // Pantalla de respaldo si no hay datos
-          : const Scaffold(
-              body: Center(
-                child: Text('No album selected', 
-                  style: TextStyle(color: Colors.white)),
-              ),
-            ),
-            
+      _buildAlbumScreen(navProvider),
+      
       // UnaffiliatedProfileScreen con ID del usuario desde el provider
-      navProvider.currentProfileUserId != null && navProvider.currentProfileUserId!.isNotEmpty
-          ? UnaffiliatedProfileScreen(userId: navProvider.currentProfileUserId!)
-          : const Scaffold(
-              body: Center(
-                child: Text('No user profile selected', 
-                  style: TextStyle(color: Colors.white)),
-              ),
-            )
+      _buildProfileScreen(navProvider),
     ];
+  }
+  
+  // Método auxiliar para construir AlbumScreen
+  static Widget _buildAlbumScreen(NavigationProvider navProvider) {
+    if (navProvider.currentAlbumId == null || navProvider.currentAlbumId!.isEmpty) {
+      return const Scaffold(
+        body: Center(
+          child: Text('No album selected', style: TextStyle(color: Colors.white)),
+        ),
+      );
+    }
+    
+    if (navProvider.currentAlbumTitle.isEmpty) {
+      // Si solo tenemos ID, usar constructor fromId
+      return AlbumScreen.fromId(albumId: navProvider.currentAlbumId!);
+    } else {
+      // Si tenemos datos completos, usar el constructor normal
+      return AlbumScreen(
+        albumId: navProvider.currentAlbumId,
+        albumTitle: navProvider.currentAlbumTitle,
+        artist: navProvider.currentArtist,
+        imageUrl: navProvider.currentImageUrl,
+        releaseYear: navProvider.currentReleaseYear,
+        rating: navProvider.currentRating,
+        trackList: navProvider.currentTrackList,
+        spotifyUrl: navProvider.currentSpotifyUrl,
+      );
+    }
+  }
+  
+  // Método auxiliar para construir UnaffiliatedProfileScreen
+  static Widget _buildProfileScreen(NavigationProvider navProvider) {
+    if (navProvider.currentProfileUserId == null || 
+        navProvider.currentProfileUserId!.isEmpty) {
+      return const Scaffold(
+        body: Center(
+          child: Text('No user profile selected', style: TextStyle(color: Colors.white)),
+        ),
+      );
+    }
+    
+    return UnaffiliatedProfileScreen(userId: navProvider.currentProfileUserId!);
   }
 }

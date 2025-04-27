@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'dart:math';
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart'; 
 import 'package:flutter_web_auth_2/flutter_web_auth_2.dart';
 import 'package:http/http.dart' as http;
 import 'package:myqx_app/core/constants/spotify_constants.dart';
@@ -25,7 +24,6 @@ class SpotifyAuthService {
   // URLs de Spotify
   static const String _authUrl = SpotifyConstants.authUrl;
   static const String _tokenUrl = SpotifyConstants.tokenUrl;
-  static const String _apiUrl = SpotifyConstants.apiUrl;
   
   // Estado de autenticación
   ValueNotifier<bool> isAuthenticated = ValueNotifier<bool>(false);

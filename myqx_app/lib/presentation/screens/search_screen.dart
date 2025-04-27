@@ -9,7 +9,7 @@ import 'package:myqx_app/presentation/providers/navigation_provider.dart';
 import 'package:myqx_app/presentation/widgets/cards/album_header.dart';
 import 'package:myqx_app/presentation/widgets/general/gradient_background.dart';
 import 'package:myqx_app/presentation/widgets/general/user_header.dart';
-import 'package:myqx_app/presentation/widgets/cards/album_track_card.dart' show AlbumTrackCard;
+import 'package:myqx_app/presentation/widgets/cards/album_track_card.dart';
 
 
 class SearchScreen extends StatefulWidget {
@@ -385,14 +385,14 @@ class _SearchScreenState extends State<SearchScreen> {
                       if (track.albumId != null && track.albumId!.isNotEmpty) {
                         final navProvider = Provider.of<NavigationProvider>(context, listen: false);
                         navProvider.navigateToAlbumById(context, track.albumId!);
-                      }
-                    },
-                    child: AlbumTrackCard(
+                      }                    },                    child: AlbumTrackCard(
                       trackNumber: index + 1,
                       trackName: track.name,
+                      artistName: track.artistName, // Añadimos el nombre del artista
                       albumCoverUrl: track.imageUrl ?? '',
                       spotifyUrl: track.spotifyUrl,
                       songId: track.id,
+                      previewUrl: track.previewUrl, // Añadimos la URL de previsualización
                       rating: 0.0, // Calificación inicial
                       loadRating: false, // No cargar calificaciones individualmente desde el servidor en la pantalla de búsqueda
                       onRatingChanged: (rating) {

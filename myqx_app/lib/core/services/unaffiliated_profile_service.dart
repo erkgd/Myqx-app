@@ -1,7 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:myqx_app/core/http/api_client.dart';
 import 'package:myqx_app/core/storage/secure_storage.dart';
-import 'package:myqx_app/core/exceptions/api_exceptions.dart';
 import 'package:myqx_app/data/models/spotify_models.dart';
 
 class UnaffiliatedProfileService extends ChangeNotifier {

@@ -4,8 +4,16 @@ import 'package:myqx_app/core/constants/corporative_colors.dart';
 class MusicContainer extends StatelessWidget {
   final Widget child;
   final Color borderColor;
-
-  const MusicContainer({Key? key, required this.child, this.borderColor = CorporativeColors.whiteColor}) : super(key: key);
+  final double elevation;
+  final BorderRadius? borderRadius;
+  
+  const MusicContainer({
+    Key? key, 
+    required this.child, 
+    this.borderColor = CorporativeColors.whiteColor,
+    this.elevation = 0.0,
+    this.borderRadius,
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -14,8 +22,16 @@ class MusicContainer extends StatelessWidget {
       margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 5.0),
       decoration: BoxDecoration(
         color: Colors.black,
-         border: Border.all(color: borderColor, width: 1.0),
-        borderRadius: BorderRadius.circular(8.0),
+        border: Border.all(color: borderColor, width: 1.0),
+        borderRadius: borderRadius ?? BorderRadius.circular(8.0),
+        boxShadow: elevation > 0 ? [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.3),
+            blurRadius: elevation,
+            spreadRadius: elevation * 0.3,
+            offset: Offset(0, elevation * 0.5),
+          )
+        ] : null,
       ),
       child: child,
     );

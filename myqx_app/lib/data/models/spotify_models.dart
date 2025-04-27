@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 // Importamos las clases que movimos a otros archivos
 export 'package:myqx_app/data/models/spotify_track.dart';
 export 'package:myqx_app/data/models/spotify_album.dart';

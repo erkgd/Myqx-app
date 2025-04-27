@@ -1,5 +1,3 @@
-import 'package:flutter/foundation.dart';
-
 class SpotifyTrack {
   final String id;
   final String name;
@@ -8,6 +6,7 @@ class SpotifyTrack {
   final String? imageUrl;
   final String spotifyUrl;
   final String? albumId; // ID del álbum
+  final String? previewUrl; // URL para reproducir vista previa
 
   SpotifyTrack({
     required this.id,
@@ -17,6 +16,7 @@ class SpotifyTrack {
     required this.imageUrl,
     required this.spotifyUrl,
     this.albumId, // Parámetro para el ID del álbum
+    this.previewUrl, // URL para reproducción
   });
 
   factory SpotifyTrack.fromJson(Map<String, dynamic> json) {
@@ -39,9 +39,7 @@ class SpotifyTrack {
         json['artists'] is List && 
         json['artists'].isNotEmpty) {
       artistName = json['artists'][0]['name'] ?? 'Unknown Artist';
-    }
-
-    return SpotifyTrack(
+    }    return SpotifyTrack(
       id: json['id'] ?? '',
       name: json['name'] ?? 'Unknown Track',
       artistName: artistName,
@@ -49,6 +47,7 @@ class SpotifyTrack {
       imageUrl: imageUrl,
       spotifyUrl: json['external_urls']?['spotify'] ?? '',
       albumId: albumId, // Asignar el ID del álbum
+      previewUrl: json['preview_url'], // URL para reproducir una vista previa (30 segundos)
     );
   }
   

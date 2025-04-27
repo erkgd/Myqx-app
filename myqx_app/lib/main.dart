@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:myqx_app/core/constants/corporative_colors.dart';
 import 'package:myqx_app/core/utils/cache_manager.dart';
+import 'package:myqx_app/core/services/audio_player_service.dart';
 import 'package:myqx_app/presentation/providers/navigation_provider.dart';
 import 'package:myqx_app/presentation/providers/auth_provider.dart';
 import 'package:myqx_app/presentation/providers/spotify_auth_provider.dart';
@@ -14,13 +15,13 @@ void main() async {
   
   // Check app version and clear caches if needed
   await CacheManager().checkAndClearCachesOnVersionChange();
-  
-  runApp(
+    runApp(
     MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => NavigationProvider()),
         ChangeNotifierProvider(create: (_) => AuthService()),
         ChangeNotifierProvider(create: (_) => SpotifyAuthProvider()),
+        ChangeNotifierProvider(create: (_) => AudioPlayerService()),
       ],
       child: const MyApp(),
     ),

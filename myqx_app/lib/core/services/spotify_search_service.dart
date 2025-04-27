@@ -74,10 +74,9 @@ class SpotifySearchService with ChangeNotifier {
       
       // Encode query for URL
       final encodedQuery = Uri.encodeComponent(query);
-      
-      debugPrint('[DEBUG] Performing Spotify search: $query ($type)');
+        debugPrint('[DEBUG] Performing Spotify search: $query ($type)');
       final response = await http.get(
-        Uri.parse('https://api.spotify.com/v1/search?q=$encodedQuery&type=$type&limit=10'),
+        Uri.parse('https://api.spotify.com/v1/search?q=$encodedQuery&type=$type&limit=20'),
         headers: {
           'Authorization': 'Bearer $token',
         },
