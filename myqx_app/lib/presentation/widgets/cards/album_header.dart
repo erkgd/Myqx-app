@@ -77,7 +77,7 @@ class _AlbumHeaderState extends State<AlbumHeader> {
           _currentRating = rating;
         });
       }
-    } catch (e) {
+    } catch (e) {       
       debugPrint('[ERROR] Failed to load album rating: $e');
       // No actualizamos el estado en caso de error, mantenemos la calificación predeterminada
     }
@@ -249,12 +249,22 @@ class _AlbumHeaderState extends State<AlbumHeader> {
                                           // Guardar en caché inmediatamente para persistencia local
                                           RatingCache().setAlbumRating(widget.albumId, _currentRating);
                                           
-                                          // Enviar la calificación al servidor cuando se confirma
-                                          final success = await _ratingService.rateAlbum(widget.albumId, _currentRating);
+                                          // Extraer el comentario si existe
+                                          final String? comment = _reviewController.text.isNotEmpty ? _reviewController.text : null;
+                                          
+                                          // Log para verificar el valor del comentario
+                                          debugPrint('[DEBUG][ALBUM_HEADER] Comment input value: "${comment ?? "NO COMMENT"}"');
+                                          
+                                          // Enviar la calificación al servidor cuando se confirma, incluyendo el comentario
+                                          final success = await _ratingService.rateAlbum(
+                                            widget.albumId, 
+                                            _currentRating,
+                                            comment: comment
+                                          );
                                           
                                           // Always treat as successful for now while backend is implemented
                                           // This gives a better user experience instead of showing errors
-                                          debugPrint('[RATING] Album rated: ${widget.albumId} - $_currentRating (success: $success, cached locally)');
+                                          debugPrint('[RATING] Album rated: ${widget.albumId} - $_currentRating ${comment != null ? "with comment: \"$comment\"" : "without comment"} (success: $success, cached locally)');
                                           
                                           // Always show success message (in English)
                                           if (context.mounted) {
@@ -267,7 +277,8 @@ class _AlbumHeaderState extends State<AlbumHeader> {
                                             );
                                           }
                                           
-                                          // Envía la reseña si existe texto
+                                          // Envía la reseña si existe texto - Esto ya no es necesario pues la enviamos directamente
+                                          // con rateAlbum, pero lo mantenemos por compatibilidad
                                           if (_reviewController.text.isNotEmpty) {
                                             widget.onReviewSubmitted?.call(_reviewController.text);
                                           }

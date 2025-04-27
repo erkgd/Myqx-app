@@ -98,7 +98,8 @@ class BroadcastService extends ChangeNotifier {
     final searchService = SpotifySearchService();
     
     for (var item in rawItems) {
-      try {        // Si los campos esenciales están nulos, debemos obtenerlos
+      try {        
+        // Si los campos esenciales están nulos, debemos obtenerlos
         String? title = item['title'];
         String? artist = item['artist'];
         String? imageUrl = item['imageUrl'];
@@ -107,11 +108,15 @@ class BroadcastService extends ChangeNotifier {
         // El spotifyId puede ser útil como alternativa si el contentId está vacío
         final String spotifyId = item['spotifyId'] ?? '';
         final String idToUse = contentId.isNotEmpty ? contentId : spotifyId.replaceAll('spotify:album:', '').replaceAll('spotify:track:', '');
+          // IMPORTANTE: Ya no usamos el método fromJson directamente
+        // porque necesitamos procesar manualmente todos los elementos
+        // para asegurarnos de que la review se maneje correctamente
         
-        // Si tenemos todos los datos, simplemente usar el elemento directamente
-        if (title != null && artist != null && imageUrl != null) {
-          processedItems.add(FeedItem.fromJson(item));
-          continue;
+        // Debug para inspeccionar todos los campos del elemento
+        debugPrint('[FEED_PROCESS] Procesando elemento con ID: ${item['id']}');
+        // Si hay review, mostrarlo específicamente
+        if (item['review'] != null && item['review'].toString().isNotEmpty) {
+          debugPrint('[FEED_PROCESS] ✅ Review encontrada en datos originales: "${item['review']}"');
         }
           // Si no, recuperar los datos faltantes desde la API de Spotify
         if (idToUse.isNotEmpty) {
@@ -149,9 +154,33 @@ class BroadcastService extends ChangeNotifier {
               debugPrint('[FEED][ERROR] Error al obtener datos de la canción $contentId: $e');
             }
           }
+        }      // Verificar si el comentario existe en el objeto (inspeccionar todos los campos posibles)
+        debugPrint('[FEED][DEBUG] Inspección de campos del item: ${item.keys.join(', ')}');
+          // Buscar comentario en diferentes posibles campos
+        String? reviewText = item['review'] as String?;
+        
+        // Si hay un comentario en review, verificar que no sea "null" como string
+        if (reviewText != null) {
+          if (reviewText.toLowerCase() == "null" || reviewText.isEmpty) {
+            reviewText = null;
+          }
         }
         
-        // Crear elemento con los datos originales pero actualizando los que faltaban
+        // Probar con el campo comment si review no tiene valor
+        if (reviewText == null) {
+          reviewText = item['comment'] as String?;
+          if (reviewText != null && (reviewText.toLowerCase() == "null" || reviewText.isEmpty)) {
+            reviewText = null;
+          }
+        }
+        
+        // Imprimir para depuración lo que se encontró
+        if (reviewText != null && reviewText.isNotEmpty) {
+          debugPrint('[FEED] ✅ Comentario encontrado para item $contentId: "$reviewText"');
+        } else {
+          debugPrint('[FEED] ⚠️ NO se encontró comentario para item $contentId - Campos relevantes: review=${item['review']}, comment=${item['comment']}');
+        }
+          // Crear elemento con los datos originales pero actualizando los que faltaban
         final processedItem = FeedItem(
           id: item['id'] ?? '',
           contentId: contentId,
@@ -160,7 +189,8 @@ class BroadcastService extends ChangeNotifier {
           artist: artist ?? 'Artista desconocido',
           imageUrl: imageUrl ?? 'https://placeholder.com/400',
           rating: (item['rating'] as num?)?.toDouble() ?? 0.0,
-          review: item['review'],
+          normalizedRating: (item['normalizedRating'] as num?)?.toDouble() ?? (item['rating'] as num?)?.toDouble() ?? 0.0,
+          review: reviewText, // Usar la variable que puede venir de 'review' o 'comment'
           userId: item['userId'] ?? '',
           username: item['username'] ?? '',
           userImageUrl: item['userImage'] ?? '',

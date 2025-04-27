@@ -147,9 +147,16 @@ class _BroadcastScreenState extends State<BroadcastScreen> {
         ),
       );
     }
-    
-    // Convertir elementos de feed a widgets RatedMusic
-    for (final item in _feedItems) {      feedWidgets.add(
+      // Convertir elementos de feed a widgets RatedMusic
+    for (final item in _feedItems) {
+      // Debug para ver si la review está presente
+      if (item.review != null && item.review!.isNotEmpty) {
+        debugPrint('[BROADCAST] Item con review: "${item.review}" - Para: ${item.title}');
+      } else {
+        debugPrint('[BROADCAST] Item sin review para: ${item.title}');
+      }
+      
+      feedWidgets.add(
         Container(
           margin: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0), // Aumento de márgenes laterales
           child: RatedMusic(

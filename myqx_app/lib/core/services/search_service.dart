@@ -17,16 +17,19 @@ class SearchService extends ChangeNotifier {
   // Constructor with explicit initialization
   SearchService({ApiClient? apiClient, SecureStorage? secureStorage}) 
       : _apiClient = apiClient ?? ApiClient(),
-        _secureStorage = secureStorage ?? SecureStorage();
-  /// Califica un álbum
+        _secureStorage = secureStorage ?? SecureStorage();  /// Califica un álbum
   /// 
   /// [albumId] es el ID del álbum en Spotify
   /// [rating] es la calificación dada por el usuario (0-5)
-  Future<bool> rateAlbum(String albumId, double rating) async {
+  /// [comment] es un comentario opcional del usuario sobre el álbum
+  Future<bool> rateAlbum(String albumId, double rating, {String? comment}) async {
     if (albumId.isEmpty) {
       debugPrint('[ERROR] Empty album ID');
       return false;
     }
+    
+    // Debug para verificar que el comentario llegue correctamente
+    debugPrint('[DEBUG][SEARCH_SERVICE] rateAlbum called with comment: "${comment ?? "NO COMMENT"}"');
 
     try {
       // IMPORTANTE: Siempre guardar en caché primero, incluso antes de intentar enviar al servidor
@@ -43,15 +46,25 @@ class SearchService extends ChangeNotifier {
 
       _isLoading = true;
       _errorMessage = null;
-      notifyListeners();      final response = await _apiClient.post('/ratings/submit', body: {
+      notifyListeners();      // Construir el cuerpo de la petición
+      final requestBody = {
         'content_id': albumId,
         'content_type': 'album',  // Identificador explícito de tipo
         'rating': rating,
         'user_id': userId,  // Include user ID in the request
         'timestamp': DateTime.now().toIso8601String(), // Añadir timestamp para auditoría
-      });
+      };
       
-      debugPrint('[RATING][ALBUM] Rating sent to server: $albumId - $rating by user $userId');
+      // Añadir el campo comment solo si hay un comentario (no estamos enviando nulls)
+      if (comment != null && comment.isNotEmpty) {
+        requestBody['comment'] = comment;
+        debugPrint('[DEBUG][SEARCH_SERVICE] Adding comment to request: "$comment"');
+      } else {
+        debugPrint('[DEBUG][SEARCH_SERVICE] No comment added to request');
+      }
+      
+      // Realizar la petición al API
+      final response = await _apiClient.post('/ratings/submit', body: requestBody);      debugPrint('[RATING][ALBUM] Rating sent to server: $albumId - $rating by user $userId${comment != null ? ' with comment: "$comment"' : ' without comment'}');
       debugPrint('[RATING][ALBUM] Server response: ${response.toString()}');
       
       // Incluso si el servidor devuelve un error, mantenemos la calificación en caché
@@ -66,12 +79,12 @@ class SearchService extends ChangeNotifier {
       _isLoading = false;
       notifyListeners();
     }
-  }
-  /// Califica una canción
+  }  /// Califica una canción
   /// 
   /// [songId] es el ID de la canción en Spotify
   /// [rating] es la calificación dada por el usuario (0-5)
-  Future<bool> rateSong(String songId, double rating) async {
+  /// [comment] es un comentario opcional del usuario sobre la canción
+  Future<bool> rateSong(String songId, double rating, {String? comment}) async {
     if (songId.isEmpty) {
       debugPrint('[ERROR] Empty song ID');
       return false;
@@ -92,15 +105,16 @@ class SearchService extends ChangeNotifier {
 
       _isLoading = true;
       _errorMessage = null;
-      notifyListeners();      final response = await _apiClient.post('/ratings/submit', body: {
+      notifyListeners();      
+      final response = await _apiClient.post('/ratings/submit', body: {
         'content_id': songId,
         'content_type': 'track',  // Identificador explícito de tipo
         'rating': rating,
         'user_id': userId,  // Include user ID in the request
         'timestamp': DateTime.now().toIso8601String(), // Añadir timestamp para auditoría
+        if (comment != null && comment.isNotEmpty) 'comment': comment, // Añadimos el comentario opcional
       });
-      
-      debugPrint('[RATING][TRACK] Rating sent to server: $songId - $rating by user $userId');
+      debugPrint('[RATING][TRACK] Rating sent to server: $songId - $rating by user $userId${comment != null ? ' with comment' : ''}');
       debugPrint('[RATING][TRACK] Server response: ${response.toString()}');
       
       // Incluso si el servidor devuelve un error, mantenemos la calificación en caché

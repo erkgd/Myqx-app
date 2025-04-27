@@ -63,13 +63,36 @@ class RatedMusic extends StatelessWidget {
                       ),
                       
                       const SizedBox(height: 8),
-                      
-                      // Review con padding añadido - Mostrar solo si hay una review
-                      if (review != null && review!.isNotEmpty)
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 12.0), // Aumentado de 20,10 a 24,12
-                          child: Review(reviewText: review!, fontSize: 11),
-                        ),
+                        // Review con padding añadido - Mostrar solo si hay una review
+                      Builder(builder: (context) {
+                        // Debug para verificar si la review llega al widget
+                        debugPrint('[RATED_MUSIC] Review recibida para widget: ${review != null ? "\"$review\"" : "NULL"}');
+                        
+                        if (review != null && review!.isNotEmpty) {
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 12.0),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // Título de la review
+                                const Text(
+                                  "Comentario:",
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                // Review
+                                Review(reviewText: review!, fontSize: 11),
+                              ],
+                            ),
+                          );
+                        } else {
+                          return const SizedBox.shrink(); // Widget vacío si no hay review
+                        }
+                      }),
                     ],
                   ),
                 ),

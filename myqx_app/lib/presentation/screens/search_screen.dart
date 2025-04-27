@@ -385,7 +385,9 @@ class _SearchScreenState extends State<SearchScreen> {
                       if (track.albumId != null && track.albumId!.isNotEmpty) {
                         final navProvider = Provider.of<NavigationProvider>(context, listen: false);
                         navProvider.navigateToAlbumById(context, track.albumId!);
-                      }                    },                    child: AlbumTrackCard(
+                      }                    
+                    },                    
+                      child: AlbumTrackCard(
                       trackNumber: index + 1,
                       trackName: track.name,
                       artistName: track.artistName, // Añadimos el nombre del artista
