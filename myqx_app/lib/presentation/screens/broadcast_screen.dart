@@ -149,10 +149,9 @@ class _BroadcastScreenState extends State<BroadcastScreen> {
     }
     
     // Convertir elementos de feed a widgets RatedMusic
-    for (final item in _feedItems) {
-      feedWidgets.add(
+    for (final item in _feedItems) {      feedWidgets.add(
         Container(
-          margin: const EdgeInsets.all(2.0),
+          margin: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0), // Aumento de márgenes laterales
           child: RatedMusic(
             imageUrl: item.imageUrl,
             artist: item.artist,

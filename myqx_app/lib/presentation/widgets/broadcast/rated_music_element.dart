@@ -1,3 +1,4 @@
+// filepath: c:\Users\aleja\Desktop\BINFO\TFB\Myqx\Myqx-app\myqx_app\lib\presentation\widgets\broadcast\rated_music_element.dart
 import 'package:flutter/material.dart';
 import 'package:myqx_app/presentation/widgets/broadcast/ratedmusicwidgets/rating.dart';
 import 'package:myqx_app/presentation/widgets/broadcast/ratedmusicwidgets/review.dart';
@@ -30,7 +31,7 @@ class RatedMusic extends StatelessWidget {
   Widget build(BuildContext context) {
     return MusicContainer(
       child: Padding(
-        padding: const EdgeInsets.all(12.0),
+        padding: const EdgeInsets.all(16.0), // Aumentado de 12.0 a 16.0
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -41,7 +42,7 @@ class RatedMusic extends StatelessWidget {
                 // Portada del álbum (esquina superior izquierda) 
                 MusicCover(imageUrl: imageUrl, size: 145),
                 
-                const SizedBox(width: 12),
+                const SizedBox(width: 16), // Aumentado de 12 a 16
                 
                 // Columna derecha (usuario y review)
                 Expanded(
@@ -66,7 +67,7 @@ class RatedMusic extends StatelessWidget {
                       // Review con padding añadido - Mostrar solo si hay una review
                       if (review != null && review!.isNotEmpty)
                         Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 10.0),
+                          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 12.0), // Aumentado de 20,10 a 24,12
                           child: Review(reviewText: review!, fontSize: 11),
                         ),
                     ],
@@ -75,7 +76,7 @@ class RatedMusic extends StatelessWidget {
               ],
             ),
             
-            const SizedBox(height: 12),
+            const SizedBox(height: 16), // Aumentado de 12 a 16
             
             // Segunda sección: Metadata, iconos Spotify y rating
             Row(
