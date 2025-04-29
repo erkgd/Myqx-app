@@ -35,7 +35,7 @@ class _BroadcastScreenState extends State<BroadcastScreen> {
       _initialLoadDone = true;
     }
   }  // Método para cargar el feed desde el BFF
-  Future<void> _loadFeed({String userId = '3'}) async {
+  Future<void> _loadFeed() async {
     // Accedemos al provider después de que el widget esté completamente construido
     final broadcastService = Provider.of<BroadcastService>(context, listen: false);
     
@@ -49,7 +49,7 @@ class _BroadcastScreenState extends State<BroadcastScreen> {
       
       // Obtener el feed del servicio sin utilizar directamente los callbacks de estado
       // del servicio para evitar conflictos con el ciclo de construcción
-      final feed = await broadcastService.getFeed(userId: userId);
+      final feed = await broadcastService.getFeed();
       if (mounted) {
         setState(() {
           _feedItems = feed;
@@ -136,7 +136,7 @@ class _BroadcastScreenState extends State<BroadcastScreen> {
                 style: TextStyle(color: Colors.white),
               ),              const SizedBox(height: 24),
               ElevatedButton(
-                onPressed: () => _loadFeed(userId: '3'),
+                onPressed: () => _loadFeed(),
                 child: const Text('Actualizar'),
               )
             ],

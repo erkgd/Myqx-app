@@ -43,18 +43,28 @@ class BroadcastService extends ChangeNotifier {
       notifyListeners();
     });
   }
-    /// Obtiene el feed de calificaciones recientes
+  
+  /// Obtiene el feed de calificaciones recientes
   /// 
   /// [limit] - número máximo de ítems a obtener
   /// [offset] - índice desde el cual cargar (para paginación)
-  /// [userId] - ID del usuario (ahora requerido por el backend)
-  Future<List<FeedItem>> getFeed({int limit = 20, int offset = 0, String userId = '3'}) async {
+  /// [userId] - ID del usuario (opcional, se obtiene del almacenamiento seguro si no se proporciona)
+  Future<List<FeedItem>> getFeed({int limit = 20, int offset = 0, String? userId}) async {
     _setLoading(true);
     _setError(null); // Limpiar errores anteriores
     
     try {
-      // Ahora incluimos el user_id como parámetro requerido
-      final endpoint = '/feed?limit=$limit&offset=$offset&user_id=$userId';
+      // Obtener el userId desde el almacenamiento seguro si no se proporciona
+      final String? storedUserId = await _secureStorage.getUserId();
+      final String userIdToUse = userId ?? storedUserId ?? '';
+      
+      if (userIdToUse.isEmpty) {
+        throw Exception('No se pudo obtener el ID del usuario');
+      }
+      
+      // Incluir el user_id como parámetro requerido
+      final endpoint = '/feed?limit=$limit&offset=$offset&user_id=$userIdToUse';
+      debugPrint('[FEED] Solicitando feed con URL: $endpoint');
       final response = await _apiClient.get(endpoint);
       
       // Debug de la respuesta completa
@@ -269,10 +279,27 @@ class BroadcastService extends ChangeNotifier {
             debugPrint('[FEED] ⚙️ review.toString()="${rawReview.toString()}", Vacío=${rawReview.toString().isEmpty}, Igual a "null"=${rawReview.toString() == "null"}');
           }
         }
-        
-        // FILTRO: Solo agregar al feed si tenemos los campos requeridos
+          // FILTRO: Solo agregar al feed si tenemos los campos requeridos
         // Esto evita que se muestren tracks que no tenemos o con datos incompletos
         if (title != null && artist != null && imageUrl != null) {
+          // Procesar URL de imagen de usuario (depuración para ver qué campo se usa)
+          final userImageValue = item['userImage'];
+          final profileImageValue = item['profileImage'];
+          final userImageUrlValue = item['userImageUrl'];
+          
+          debugPrint('[FEED_USER_IMAGE] Valores de imagen para usuario ${item['username']}: userImage="$userImageValue", profileImage="$profileImageValue", userImageUrl="$userImageUrlValue"');
+          
+          // Seleccionar la primera URL no vacía
+          final userImage = userImageValue != null && userImageValue.toString().isNotEmpty && userImageValue.toString() != "null"
+              ? userImageValue.toString()
+              : profileImageValue != null && profileImageValue.toString().isNotEmpty && profileImageValue.toString() != "null"
+                  ? profileImageValue.toString()
+                  : userImageUrlValue != null && userImageUrlValue.toString().isNotEmpty && userImageUrlValue.toString() != "null"
+                      ? userImageUrlValue.toString()
+                      : "";
+                      
+          debugPrint('[FEED_USER_IMAGE] URL final de imagen de usuario: "$userImage"');
+          
           final processedItem = FeedItem(
             id: item['id'] ?? '',
             contentId: contentId,
@@ -285,7 +312,7 @@ class BroadcastService extends ChangeNotifier {
             review: reviewText, // Usar la variable que puede venir de 'review' o 'comment'
             userId: item['userId'] ?? '',
             username: item['username'] ?? '',
-            userImageUrl: item['userImage'] ?? item['profileImage'] ?? '',
+            userImageUrl: userImage,
             timestamp: item['date'] != null 
               ? DateTime.parse(item['date']) 
               : DateTime.now(),
@@ -317,12 +344,21 @@ class BroadcastService extends ChangeNotifier {
   /// [userId] - ID del usuario del cual se quiere obtener el feed
   /// [limit] - número máximo de ítems a obtener
   /// [offset] - índice desde el cual cargar (para paginación)
-  Future<List<FeedItem>> getUserFeed(String userId, {int limit = 20, int offset = 0}) async {
+  Future<List<FeedItem>> getUserFeed({int limit = 20, int offset = 0, String? userId}) async {
     _setLoading(true);
     _setError(null); // Limpiar errores anteriores
     
     try {
-      final endpoint = '/user/$userId/feed?limit=$limit&offset=$offset';
+      // Obtener el userId desde el almacenamiento seguro si no se proporciona
+      final String? storedUserId = await _secureStorage.getUserId();
+      final String userIdToUse = userId ?? storedUserId ?? '';
+      
+      if (userIdToUse.isEmpty) {
+        throw Exception('No se pudo obtener el ID del usuario');
+      }
+      
+      final endpoint = '/user/$userIdToUse/feed?limit=$limit&offset=$offset';
+      debugPrint('[USER_FEED] Solicitando feed de usuario con URL: $endpoint');
       final response = await _apiClient.get(endpoint);
       
       late List<dynamic> feedData;
@@ -336,7 +372,7 @@ class BroadcastService extends ChangeNotifier {
         throw Exception('Formato de respuesta no reconocido');
       }
       
-      if (feedData != null && feedData.isNotEmpty) {
+      if (feedData.isNotEmpty) {
         final userFeed = await _processRawFeedItems(feedData);
         return userFeed;
       } else {
@@ -354,8 +390,9 @@ class BroadcastService extends ChangeNotifier {
       _safeNotify();
     }
   }
-    /// Actualiza el feed obteniendo datos nuevos desde el servidor
-  Future<void> refreshFeed({String userId = '3'}) async {
+  
+  /// Actualiza el feed obteniendo datos nuevos desde el servidor
+  Future<void> refreshFeed({String? userId}) async {
     await getFeed(userId: userId);
   }
 }

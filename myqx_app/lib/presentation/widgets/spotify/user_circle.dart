@@ -14,9 +14,11 @@ class UserCircle extends StatelessWidget {
     this.imageSize = 30.0,
     this.fontSize = 14.0,
   });
-
   @override
   Widget build(BuildContext context) {
+    // Depuración para ver la URL de la imagen
+    debugPrint('[USER_CIRCLE] Construyendo UserCircle para $username con URL: "$imageUrl"');
+    
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -41,22 +43,25 @@ class UserCircle extends StatelessWidget {
                 color: CorporativeColors.mainColor,
                 width: 2.0,
               ),
-            ),
-            child: ClipOval(
+            ),            child: ClipOval(
               child: imageUrl.isNotEmpty 
-                ? Image.network(
-                    imageUrl,
+                ? FadeInImage.assetNetwork(
+                    placeholder: 'assets/images/Logo_squared.png',
+                    image: imageUrl,
                     fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) => CircleAvatar(
-                      backgroundColor: CorporativeColors.mainColor,
-                      child: Text(
-                        username.isNotEmpty ? username[0].toUpperCase() : '?',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
+                    imageErrorBuilder: (context, error, stackTrace) {
+                      debugPrint('[USER_CIRCLE] ⚠️ Error al cargar la imagen: $error para URL: $imageUrl');
+                      return CircleAvatar(
+                        backgroundColor: CorporativeColors.mainColor,
+                        child: Text(
+                          username.isNotEmpty ? username[0].toUpperCase() : '?',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
-                      ),
-                    ),
+                      );
+                    },
                   )
                 : CircleAvatar(
                     backgroundColor: CorporativeColors.mainColor,
