@@ -34,9 +34,8 @@ class _BroadcastScreenState extends State<BroadcastScreen> {
       _loadFeed();
       _initialLoadDone = true;
     }
-  }
-  // Método para cargar el feed desde el BFF
-  Future<void> _loadFeed() async {
+  }  // Método para cargar el feed desde el BFF
+  Future<void> _loadFeed({String userId = '3'}) async {
     // Accedemos al provider después de que el widget esté completamente construido
     final broadcastService = Provider.of<BroadcastService>(context, listen: false);
     
@@ -50,8 +49,7 @@ class _BroadcastScreenState extends State<BroadcastScreen> {
       
       // Obtener el feed del servicio sin utilizar directamente los callbacks de estado
       // del servicio para evitar conflictos con el ciclo de construcción
-      final feed = await broadcastService.getFeed();
-      
+      final feed = await broadcastService.getFeed(userId: userId);
       if (mounted) {
         setState(() {
           _feedItems = feed;
@@ -136,10 +134,9 @@ class _BroadcastScreenState extends State<BroadcastScreen> {
               const Text(
                 'No hay actividad en el feed',
                 style: TextStyle(color: Colors.white),
-              ),
-              const SizedBox(height: 24),
+              ),              const SizedBox(height: 24),
               ElevatedButton(
-                onPressed: _loadFeed,
+                onPressed: () => _loadFeed(userId: '3'),
                 child: const Text('Actualizar'),
               )
             ],
@@ -147,7 +144,8 @@ class _BroadcastScreenState extends State<BroadcastScreen> {
         ),
       );
     }
-      // Convertir elementos de feed a widgets RatedMusic
+    
+    // Convertir elementos de feed a widgets RatedMusic
     for (final item in _feedItems) {
       // Debug para ver si la review está presente
       if (item.review != null && item.review!.isNotEmpty) {
@@ -156,9 +154,13 @@ class _BroadcastScreenState extends State<BroadcastScreen> {
         debugPrint('[BROADCAST] Item sin review para: ${item.title}');
       }
       
+      // Log para depuración completa de los datos
+      debugPrint('[BROADCAST] Item: Tipo=${item.contentType}, Título=${item.title}, Artista=${item.artist}');
+      debugPrint('[BROADCAST] URLs - Contenido: "${item.imageUrl}", Usuario: "${item.userImageUrl}"');
+      
       feedWidgets.add(
         Container(
-          margin: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0), // Aumento de márgenes laterales
+          margin: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0), 
           child: RatedMusic(
             imageUrl: item.imageUrl,
             artist: item.artist,
@@ -166,6 +168,8 @@ class _BroadcastScreenState extends State<BroadcastScreen> {
             review: item.review,
             rating: item.rating.toInt(),
             user: item.username,
+            userImageUrl: item.userImageUrl, // URL de la imagen de perfil del usuario
+            contentType: item.contentType,   // Tipo de contenido: 'album' o 'track'
           ),
         ),
       );

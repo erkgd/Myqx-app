@@ -11,7 +11,7 @@ class Divisor extends StatelessWidget {
       margin: const EdgeInsets.symmetric(vertical: AppConstants.verticalMargins),
       child: const Divider(
         color: CorporativeColors.mainColor,
-        thickness: 1.0,
+        thickness: 1.5,
       ),
     );
   }

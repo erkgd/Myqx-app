@@ -39,9 +39,21 @@ class RatingManager {
       }
     });
   }
+
+  /// Divide una lista en chunks más pequeños para procesamiento en paralelo
+  List<List<T>> _splitIntoChunks<T>(List<T> list, int chunkSize) {
+    if (list.isEmpty) return [];
+    if (list.length <= chunkSize) return [list];
+    
+    final List<List<T>> chunks = [];
+    for (var i = 0; i < list.length; i += chunkSize) {
+      final end = (i + chunkSize < list.length) ? i + chunkSize : list.length;
+      chunks.add(list.sublist(i, end));
+    }
+    return chunks;
+  }
   
   /// Precargar calificaciones de álbumes en batches para optimizar el rendimiento
-  /// Útil cuando sabemos que el usuario va a ver muchos álbumes/canciones
   Future<void> preloadAlbumRatings(List<String> albumIds) async {
     if (_isPreloading || albumIds.isEmpty) return;
     
@@ -74,7 +86,10 @@ class RatingManager {
         final chunks = _splitIntoChunks(limitedAlbums, 3);
         for (final chunk in chunks) {
           await Future.wait(
-            chunk.map((id) => _searchService.getAlbumRating(id))
+            chunk.map((id) async {
+              _searchService.getAlbumRating(id);
+              return Future.value(); // Devolver un Future<void> para compatibilidad
+            })
           );
         }
         
@@ -93,7 +108,8 @@ class RatingManager {
       }
     });
   }
-    /// Precargar calificaciones de canciones en batches para optimizar el rendimiento
+  
+  /// Precargar calificaciones de canciones en batches para optimizar el rendimiento
   Future<void> preloadTrackRatings(List<String> trackIds) async {
     if (_isPreloading || trackIds.isEmpty) return;
     
@@ -126,7 +142,10 @@ class RatingManager {
         final chunks = _splitIntoChunks(limitedTracks, 3);
         for (final chunk in chunks) {
           await Future.wait(
-            chunk.map((id) => _searchService.getSongRating(id))
+            chunk.map((id) async {
+              _searchService.getSongRating(id);
+              return Future.value(); // Devolver un Future<void> para compatibilidad
+            })
           );
         }
         
@@ -149,31 +168,15 @@ class RatingManager {
     });
   }
   
-  /// Método para dividir una lista en chunks de tamaño específico
-  List<List<T>> _splitIntoChunks<T>(List<T> list, int chunkSize) {
-    final result = <List<T>>[];
-    for (var i = 0; i < list.length; i += chunkSize) {
-      result.add(
-        list.sublist(i, i + chunkSize > list.length ? list.length : i + chunkSize)
-      );
+  /// Fuerza la persistencia de calificaciones en caché al almacenamiento
+  Future<void> persistRatings() async {
+    debugPrint('[RATING] Forcing persistence of ratings to storage');
+    try {
+      // Utilizar el método público saveToStorage de RatingCache para persistir
+      await RatingCache().saveToStorage();
+      debugPrint('[RATING] Ratings successfully persisted to storage');
+    } catch (e) {
+      debugPrint('[ERROR] Error persisting ratings: $e');
     }
-    return result;
-  }
-  
-  /// Fuerza la persistencia de las calificaciones en almacenamiento local
-  /// Llamar este método cuando el usuario termina una sesión de calificación
-  void persistRatings() {
-    // RatingCache ya guarda automáticamente cada cambio,
-    // pero podemos forzar una limpieza y notificar para
-    // visualizar claramente cuando persistimos los datos
-    
-    // Limpiar IDs temporales que ya no necesitamos
-    _recentlyRequestedAlbumIds.clear();
-    _recentlyRequestedTrackIds.clear();
-    
-    // Imprimir estadísticas para debug
-    RatingCache().printStats();
-    
-    debugPrint('[RATING] Ratings persisted to local storage');
   }
 }

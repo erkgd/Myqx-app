@@ -1,7 +1,6 @@
 // filepath: c:\Users\aleja\Desktop\BINFO\TFB\Myqx\Myqx-app\myqx_app\lib\presentation\widgets\broadcast\rated_music_element.dart
 import 'package:flutter/material.dart';
 import 'package:myqx_app/presentation/widgets/broadcast/ratedmusicwidgets/rating.dart';
-import 'package:myqx_app/presentation/widgets/broadcast/ratedmusicwidgets/review.dart';
 import 'package:myqx_app/presentation/widgets/spotify/add_to_playlist.dart';
 import 'package:myqx_app/presentation/widgets/spotify/spotify_link.dart';
 import 'package:myqx_app/presentation/widgets/spotify/user_circle.dart';
@@ -16,6 +15,8 @@ class RatedMusic extends StatelessWidget {
   final String? review;
   final int rating;
   final String user;
+  final String userImageUrl; // Nuevo parámetro para la foto de perfil
+  final String contentType; // Parámetro para saber si es álbum o canción
 
   const RatedMusic({
     super.key,
@@ -25,116 +26,155 @@ class RatedMusic extends StatelessWidget {
     this.review,
     required this.rating,
     required this.user,
+    required this.userImageUrl, // Añadido como parámetro requerido
+    required this.contentType,  // Añadido como parámetro requerido ('album' o 'track')
   });
 
   @override
   Widget build(BuildContext context) {
-    return MusicContainer(
-      child: Padding(
-        padding: const EdgeInsets.all(16.0), // Aumentado de 12.0 a 16.0
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Primera sección: Portada, usuario y review
-            Row(
+    // Debug para verificar si la review llega al widget
+    if (review != null && review!.isNotEmpty) {
+      debugPrint('[RATED_MUSIC] Review recibida para widget: "$review" para $musicname');
+    } else {
+      debugPrint('[RATED_MUSIC] Sin review para $musicname');
+    }
+    
+    // Debug para verificar qué tipo de contenido se está procesando y sus datos
+    debugPrint('[RATED_MUSIC] Procesando $contentType - Título: "$musicname", Artista: "$artist", ImageURL: "$imageUrl"');
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Etiqueta del tipo de contenido alineada a la DERECHA
+        Align(
+          alignment: Alignment.topLeft,
+          child: Container(
+            margin: const EdgeInsets.only(left: 20, bottom: 4.0),
+            padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 4.0),
+            decoration: BoxDecoration(
+              color: Colors.black.withOpacity(0.7),
+              borderRadius: BorderRadius.circular(13.0),
+              border: Border.all(color: Colors.white, width: 0.5),
+            ),
+            child: Text(
+              contentType == 'album' ? 'ALBUM' : 'TRACK',
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 10.0,
+                letterSpacing: 0.5,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ),
+        
+        // La tarjeta principal
+        MusicContainer(
+          child: Padding(
+            padding: const EdgeInsets.all(16.0), 
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Portada del álbum (esquina superior izquierda) 
-                MusicCover(imageUrl: imageUrl, size: 145),
-                
-                const SizedBox(width: 16), // Aumentado de 12 a 16
-                
-                // Columna derecha (usuario y review)
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Usuario - AHORA EN UNA FILA QUE LO EMPUJA A LA DERECHA
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
+                // Primera sección: Portada, usuario y review
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Portada del álbum (esquina superior izquierda)
+                    MusicCover(imageUrl: imageUrl, size: 145),
+                    
+                    const SizedBox(width: 16), // Espaciado entre portada y columna derecha
+                    
+                    // Columna derecha (usuario y review)
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          UserCircle(
-                            username: user, 
-                            imageUrl: imageUrl, 
-                            imageSize: 24, 
-                            fontSize: 14
+                          // Usuario - En una fila que lo empuja a la derecha
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              UserCircle(
+                                username: user, 
+                                imageUrl: userImageUrl, // Usar la URL de imagen de perfil del usuario
+                                imageSize: 24, 
+                                fontSize: 14
+                              ),
+                            ],
                           ),
+                          
+                          const SizedBox(height: 8),
+                            
+                          // Review con mejor diseño - Mostrar solo si hay una review
+                          if (review != null && review!.isNotEmpty && review!.toLowerCase() != "null")
+                            Container(
+                              width: double.infinity,
+                              margin: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 8.0),
+                              padding: const EdgeInsets.all(12.0),
+                              
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  // Review text
+                                  Text(
+                                    review!,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 11,
+                                      letterSpacing: 0.2, // Espaciado entre letras
+                                      wordSpacing: 1.0,   // Espaciado consistente entre palabras
+                                      height: 1.4,        // Altura de línea para mejor legibilidad
+                                    ),
+                                    textAlign: TextAlign.justify,
+                                    overflow: TextOverflow.ellipsis,
+                                    maxLines: 8,
+                                  ),
+                                ],
+                              ),
+                            ),
                         ],
                       ),
-                      
-                      const SizedBox(height: 8),
-                        // Review con padding añadido - Mostrar solo si hay una review
-                      Builder(builder: (context) {
-                        // Debug para verificar si la review llega al widget
-                        debugPrint('[RATED_MUSIC] Review recibida para widget: ${review != null ? "\"$review\"" : "NULL"}');
-                        
-                        if (review != null && review!.isNotEmpty) {
-                          return Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 12.0),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                // Título de la review
-                                const Text(
-                                  "Comentario:",
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 12,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                // Review
-                                Review(reviewText: review!, fontSize: 11),
-                              ],
+                    ),
+                  ],
+                ),
+                
+                const SizedBox(height: 16), // Espaciado entre secciones
+                
+                // Segunda sección: Metadata, iconos Spotify y rating
+                Row(
+                  children: [
+                    // Metadata (artista y nombre) con los iconos de Spotify integrados
+                    Expanded(
+                      flex: 3,
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: MusicMetadata(
+                              artist: artist, 
+                              musicname: musicname
                             ),
-                          );
-                        } else {
-                          return const SizedBox.shrink(); // Widget vacío si no hay review
-                        }
-                      }),
-                    ],
-                  ),
+                          ),
+                          // ICONOS DE SPOTIFY PEGADOS A LOS METADATOS
+                          SpotifyLink(
+                            songUrl: Uri.parse('https://open.spotify.com/intl-es/track/0zn0GmUvU9wkqcj8slROu9?si=9166f09e829b4ccd'), 
+                            size: 25
+                          ),
+                          const SizedBox(width: 2),
+                          AddToPlaylist(songId: 'songId', size: 25),
+                        ],
+                      ),
+                    ),
+                    
+                    const SizedBox(width: 40), // Espaciado entre metadata y rating
+                    
+                    // Rating - Convertir de int a double para el widget
+                    Rating(rating: rating.toDouble(), itemSize: 14),
+                  ],
                 ),
               ],
             ),
-            
-            const SizedBox(height: 16), // Aumentado de 12 a 16
-            
-            // Segunda sección: Metadata, iconos Spotify y rating
-            Row(
-              children: [
-                // Metadata (artista y nombre) con los iconos de Spotify integrados
-                Expanded(
-                  flex: 3,
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: MusicMetadata(
-                          artist: artist, 
-                          musicname: musicname
-                        ),
-                      ),
-                      // ICONOS DE SPOTIFY PEGADOS A LOS METADATOS (sin SizedBox)
-                      SpotifyLink(
-                        songUrl: Uri.parse('https://open.spotify.com/intl-es/track/0zn0GmUvU9wkqcj8slROu9?si=9166f09e829b4ccd'), 
-                        size: 25
-                      ),
-                      const SizedBox(width: 2),
-                      AddToPlaylist(songId: 'songId', size: 25),
-                    ],
-                  ),
-                ),
-                
-                const SizedBox(width: 40), // Este espacio se mantiene igual
-                
-                // Rating - Convertir de int a double para el widget
-                Rating(rating: rating.toDouble(), itemSize: 14),
-              ],
-            ),
-          ],
+          ),
         ),
-      )
+      ],
     );
   }
 }

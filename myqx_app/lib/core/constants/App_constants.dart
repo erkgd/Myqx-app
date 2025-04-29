@@ -4,5 +4,5 @@ class AppConstants {
   static const double lateralMargins = 25.0;
 
   // BroadcastScreen Constants
-  static const double verticalMargins = 10.0;
+  static const double verticalMargins = 5.0;
 }

@@ -248,4 +248,28 @@ class RatingCache {
   void printStats() {
     debugPrint('[CACHE] Stats: ${_albumRatings.length} albums, ${_trackRatings.length} tracks');
   }
+  
+  /// Método público para guardar explícitamente en el almacenamiento
+  Future<void> saveToStorage() async {
+    debugPrint('[CACHE] Manually saving ratings to persistent storage');
+    await _saveToStorage();
+  }
+  
+  /// Limpia todas las calificaciones en caché
+  Future<void> clearAll() async {
+    debugPrint('[CACHE] Clearing all ratings');
+    _albumRatings.clear();
+    _trackRatings.clear();
+    _albumTimestamps.clear();
+    _trackTimestamps.clear();
+    
+    // Limpiar también el almacenamiento persistente
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_albumRatingsKey);
+    await prefs.remove(_trackRatingsKey);
+    await prefs.remove(_albumTimestampsKey);
+    await prefs.remove(_trackTimestampsKey);
+    
+    debugPrint('[CACHE] All ratings cleared');
+  }
 }
