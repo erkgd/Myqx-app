@@ -60,7 +60,7 @@ class RatedMusic extends StatelessWidget {
               border: Border.all(color: Colors.white, width: 0.5),
             ),
             child: Text(
-              contentType == 'album' ? 'ÁLBUM' : 'CANCIÓN',
+              contentType == 'album' ? 'ALBUM' : 'TRACK',
               style: const TextStyle(
                 color: Colors.white,
                 fontSize: 10.0,

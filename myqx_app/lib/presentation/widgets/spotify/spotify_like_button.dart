@@ -79,8 +79,7 @@ class _SpotifyLikeButtonState extends State<SpotifyLikeButton> {
       }
     }
   }
-  
-  /// Maneja el clic en el botón para cambiar el estado de "me gusta"
+    /// Maneja el clic en el botón para cambiar el estado de "me gusta"
   Future<void> _handleLikeToggle() async {
     try {
       if (mounted) {
@@ -89,27 +88,33 @@ class _SpotifyLikeButtonState extends State<SpotifyLikeButton> {
         });
       }
       
-      final success = await widget.likeService.likeContent(
+      // Usar el nuevo método toggleLike para alternar el estado
+      final success = await widget.likeService.toggleLike(
         widget.contentId,
         widget.contentType,
+        _isLiked,  // Pasar el estado actual
       );
       
       if (success && mounted) {
         setState(() {
-          _isLiked = true;
+          _isLiked = !_isLiked; // Invertir el estado actual
           _isLoading = false;
         });
         
         // Notificar el cambio si existe un callback
         if (widget.onLikeChanged != null) {
-          widget.onLikeChanged!(true);
+          widget.onLikeChanged!(_isLiked);
         }
         
-        // Mostrar mensaje de éxito
+        // Mostrar mensaje de éxito según la acción realizada (añadir o quitar)
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('¡Añadido a tus ${widget.contentType == 'album' ? 'álbumes' : 'canciones'} favoritos!'),
+              content: Text(
+                _isLiked 
+                  ? '¡Añadido a tus ${widget.contentType == 'album' ? 'álbumes' : 'canciones'} favoritos!' 
+                  : '¡Quitado de tus ${widget.contentType == 'album' ? 'álbumes' : 'canciones'} favoritos!'
+              ),
               backgroundColor: Colors.green,
               duration: const Duration(seconds: 2),
             ),

@@ -12,9 +12,8 @@ class SpotifyAuthService {
   // Reemplaza estos valores con tu configuración de Spotify Developer
   static const String _clientId = SpotifyConstants.clientId;
   static const String _redirectUri = SpotifyConstants.redirectUri;
-  
-  // Scope necesario para acceder a datos del usuario y de música
-  static const String _scope = 'user-read-email user-read-private user-top-read user-library-read';
+    // Scope necesario para acceder a datos del usuario y de música
+  static const String _scope = 'user-read-email user-read-private user-top-read user-library-read user-library-modify';
   
   // Claves para almacenamiento local
   static const String _accessTokenKey = 'spotify_access_token';
