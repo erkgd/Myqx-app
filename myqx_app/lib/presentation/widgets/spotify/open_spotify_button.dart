@@ -15,6 +15,32 @@ class OpenSpotifyButton extends StatelessWidget {
     this.width,
     this.text = 'Abrir Spotify',
   }) : super(key: key);
+  
+  /// Extrae el ID de Spotify de una URL completa
+  String _extractSpotifyId(String url) {
+    // Formato típico: https://open.spotify.com/album/1234567890 o https://open.spotify.com/track/1234567890
+    final Uri uri = Uri.parse(url);
+    final List<String> segments = uri.pathSegments;
+    
+    if (segments.length >= 2) {
+      return segments.last; // El último segmento es el ID
+    }
+    
+    // Fallback, devolver un fragmento de la URL como ID
+    return url.split('/').last;
+  }
+  
+  /// Determina el tipo de contenido (album o track) de una URL de Spotify
+  String _extractContentType(String url) {
+    if (url.contains('/album/')) {
+      return 'album';
+    } else if (url.contains('/track/')) {
+      return 'track';
+    } else {
+      // Valor predeterminado si no se puede determinar el tipo
+      return 'track';
+    }
+  }
 
   Future<void> _launchSpotify() async {
     try {
@@ -48,13 +74,16 @@ class OpenSpotifyButton extends StatelessWidget {
           color: Colors.transparent,
         ),
         // Añadido padding horizontal dentro del botón
-        padding: const EdgeInsets.symmetric(horizontal: 10.0),
-        child: Row(
+        padding: const EdgeInsets.symmetric(horizontal: 10.0),        child: Row(
           mainAxisSize: MainAxisSize.min,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // Icono de Spotify
-            SpotifyLink(songUrl: Uri.parse(spotifyUrl), size: 16), // Reducido tamaño
+            // Extraer ID y tipo de contenido de la URL de Spotify
+            SpotifyLink(
+              contentId: _extractSpotifyId(spotifyUrl),
+              contentType: _extractContentType(spotifyUrl),
+              size: 16
+            ),
             
             if (text.isNotEmpty) ...[
               const SizedBox(width: 6), // Espaciado entre icono y texto

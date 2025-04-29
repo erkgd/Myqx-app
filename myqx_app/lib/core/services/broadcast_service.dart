@@ -144,16 +144,22 @@ class BroadcastService extends ChangeNotifier {
     final albumService = SpotifyAlbumService();
     
     for (var item in rawItems) {
-      try {        
-        // Si los campos esenciales están nulos, debemos obtenerlos
+      try {          // Si los campos esenciales están nulos, debemos obtenerlos
         String? title = item['title'];
         String? artist = item['artist'];
         String? imageUrl = item['imageUrl'];
-        final String contentId = item['contentId'] ?? '';
-        final String contentType = item['contentType'] ?? 'album';
-        // El spotifyId puede ser útil como alternativa si el contentId está vacío
+        
+        // Para contentId, preferimos usar spotifyId que viene con el formato "spotify:album:ID" o "spotify:track:ID"
+        final String rawContentId = item['contentId'] ?? '';
         final String spotifyId = item['spotifyId'] ?? '';
-        final String idToUse = contentId.isNotEmpty ? contentId : spotifyId.replaceAll('spotify:album:', '').replaceAll('spotify:track:', '');
+        final String contentType = item['contentType'] ?? 'album';
+        
+        // Preferir spotifyId sobre contentId porque incluye el tipo de contenido
+        final String contentId = spotifyId.isNotEmpty ? spotifyId : rawContentId;
+        
+        // Para búsquedas en la API, necesitamos el ID limpio
+        final String idToUse = rawContentId.isNotEmpty ? rawContentId : 
+                              spotifyId.contains(':') ? spotifyId.split(':').last : spotifyId;
           
         // IMPORTANTE: Ya no usamos el método fromJson directamente
         // porque necesitamos procesar manualmente todos los elementos
@@ -281,20 +287,25 @@ class BroadcastService extends ChangeNotifier {
         }
           // FILTRO: Solo agregar al feed si tenemos los campos requeridos
         // Esto evita que se muestren tracks que no tenemos o con datos incompletos
-        if (title != null && artist != null && imageUrl != null) {
-          // Procesar URL de imagen de usuario (depuración para ver qué campo se usa)
+        if (title != null && artist != null && imageUrl != null) {          // Procesar URL de imagen de usuario (depuración para ver qué campo se usa)
           final userImageValue = item['userImage'];
           final profileImageValue = item['profileImage'];
           final userImageUrlValue = item['userImageUrl'];
           
           debugPrint('[FEED_USER_IMAGE] Valores de imagen para usuario ${item['username']}: userImage="$userImageValue", profileImage="$profileImageValue", userImageUrl="$userImageUrlValue"');
           
-          // Seleccionar la primera URL no vacía
-          final userImage = userImageValue != null && userImageValue.toString().isNotEmpty && userImageValue.toString() != "null"
+          // Usar userImage que aparece en la respuesta del servidor
+          final userImage = (userImageValue != null && 
+                  userImageValue.toString().isNotEmpty && 
+                  userImageValue.toString() != "null")
               ? userImageValue.toString()
-              : profileImageValue != null && profileImageValue.toString().isNotEmpty && profileImageValue.toString() != "null"
+              : (profileImageValue != null && 
+                  profileImageValue.toString().isNotEmpty && 
+                  profileImageValue.toString() != "null")
                   ? profileImageValue.toString()
-                  : userImageUrlValue != null && userImageUrlValue.toString().isNotEmpty && userImageUrlValue.toString() != "null"
+                  : (userImageUrlValue != null && 
+                      userImageUrlValue.toString().isNotEmpty && 
+                      userImageUrlValue.toString() != "null")
                       ? userImageUrlValue.toString()
                       : "";
                       

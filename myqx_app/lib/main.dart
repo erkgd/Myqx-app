@@ -4,6 +4,7 @@ import 'package:myqx_app/core/utils/cache_manager.dart';
 import 'package:myqx_app/core/services/audio_player_service.dart';
 import 'package:myqx_app/core/services/rating_service.dart';
 import 'package:myqx_app/core/services/broadcast_service.dart';
+import 'package:myqx_app/core/services/svg_safe_service.dart';
 import 'package:myqx_app/presentation/providers/navigation_provider.dart';
 import 'package:myqx_app/presentation/providers/auth_provider.dart';
 import 'package:myqx_app/presentation/providers/spotify_auth_provider.dart';
@@ -11,12 +12,53 @@ import 'package:provider/provider.dart';
 import 'package:myqx_app/presentation/widgets/general/app_scaffold.dart';
 import 'package:myqx_app/presentation/screens/login_screen.dart';
 import 'package:myqx_app/presentation/screens/unaffiliated_profile_screen.dart';
+import 'package:flutter/foundation.dart';
+
+/// Función para precargar SVGs al iniciar la app
+Future<void> _preloadSvgAssets() async {
+  // Lista de SVGs usados en la aplicación
+  final svgAssets = [
+    'assets/images/spotifyLogo.svg',
+    'assets/images/spotify-like-icon.svg',
+    'assets/images/spotify-icon-liked.svg',
+    'assets/images/HomeIcon.svg',
+    'assets/images/BroadcastIcon.svg',
+    'assets/images/GraphIcon.svg',
+  ];
+  
+  // Precargar de forma segura
+  try {
+    debugPrint('[APP_INIT] 🔄 Precargando SVGs...');
+    await SvgSafeService.preloadSvgs(svgAssets);
+    debugPrint('[APP_INIT] ✅ SVGs precargados correctamente');
+  } catch (e) {
+    debugPrint('[APP_INIT] ❌ Error al precargar SVGs: $e');
+    // Continuar con la ejecución incluso si hay errores
+  }
+}
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
   // Check app version and clear caches if needed
-  await CacheManager().checkAndClearCachesOnVersionChange();    runApp(
+  await CacheManager().checkAndClearCachesOnVersionChange();
+  
+  // Precargar todos los SVGs para validarlos y evitar errores durante la ejecución
+  await _preloadSvgAssets();
+  
+  // Configurar el manejo global de errores para evitar que los errores de SVG causen fallos en la app
+  FlutterError.onError = (FlutterErrorDetails details) {
+    // Filtrar errores relacionados con SVG y permitir que otros errores se muestren normalmente
+    if (details.exception.toString().contains('SVG') || 
+        details.exception.toString().contains('svg')) {
+      debugPrint('[ERROR_HANDLER] ⚠️ Se detectó un error en SVG: ${details.exception}');
+      // No propagar el error para que la aplicación no se interrumpa
+    } else {
+      FlutterError.presentError(details);
+    }
+  };
+  
+  runApp(
     MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => NavigationProvider()),

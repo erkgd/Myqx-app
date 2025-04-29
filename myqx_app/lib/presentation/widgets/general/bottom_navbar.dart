@@ -19,24 +19,23 @@ class BottomNavBar extends StatelessWidget {
       child: LayoutBuilder(
         builder: (context, constraints) {
           double iconSize = constraints.maxWidth * 0.08; // Ajusta el tamaño del icono según el ancho disponible
-          double spacing = constraints.maxWidth * 0.05; // Ajusta el espacio entre los iconos según el ancho disponible
-
+          
           return BottomNavigationBar(
-            backgroundColor: CorporativeColors.blackColor,
+            backgroundColor: Colors.black,
+            elevation: 0,
+            selectedFontSize: 0,
+            unselectedFontSize: 0,
             currentIndex: currentIndex,
             onTap: onTap,
-            showSelectedLabels: false,
-            showUnselectedLabels: false,
-            type: BottomNavigationBarType.fixed, // Anula la animación por defecto
+            type: BottomNavigationBarType.fixed,
             items: [
               BottomNavigationBarItem(
                 icon: Padding(
-                  padding: EdgeInsets.symmetric(horizontal: spacing),
-                  child: GestureDetector(
-                    onTap: () => onTap(0),
+                  padding: const EdgeInsets.only(top: 10.0),
+                  child: SizedBox(
+                    width: iconSize,
+                    height: iconSize,
                     child: Container(
-                      width: iconSize,
-                      height: iconSize,
                       decoration: currentIndex == 0
                           ? BoxDecoration(
                               boxShadow: [
@@ -60,12 +59,11 @@ class BottomNavBar extends StatelessWidget {
               ),
               BottomNavigationBarItem(
                 icon: Padding(
-                  padding: EdgeInsets.symmetric(horizontal: spacing),
-                  child: GestureDetector(
-                    onTap: () => onTap(1),
+                  padding: const EdgeInsets.only(top: 10.0),
+                  child: SizedBox(
+                    width: iconSize,
+                    height: iconSize,
                     child: Container(
-                      width: iconSize,
-                      height: iconSize,
                       decoration: currentIndex == 1
                           ? BoxDecoration(
                               boxShadow: [
@@ -89,12 +87,11 @@ class BottomNavBar extends StatelessWidget {
               ),
               BottomNavigationBarItem(
                 icon: Padding(
-                  padding: EdgeInsets.symmetric(horizontal: spacing),
-                  child: GestureDetector(
-                    onTap: () => onTap(2),
+                  padding: const EdgeInsets.only(top: 10.0),
+                  child: SizedBox(
+                    width: iconSize,
+                    height: iconSize,
                     child: Container(
-                      width: iconSize,
-                      height: iconSize,
                       decoration: currentIndex == 2
                           ? BoxDecoration(
                               boxShadow: [

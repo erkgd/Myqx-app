@@ -157,8 +157,7 @@ class _BroadcastScreenState extends State<BroadcastScreen> {
       // Log para depuración completa de los datos
       debugPrint('[BROADCAST] Item: Tipo=${item.contentType}, Título=${item.title}, Artista=${item.artist}');
       debugPrint('[BROADCAST] URLs - Contenido: "${item.imageUrl}", Usuario: "${item.userImageUrl}"');
-      
-      feedWidgets.add(
+        feedWidgets.add(
         Container(
           margin: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0), 
           child: RatedMusic(
@@ -170,6 +169,7 @@ class _BroadcastScreenState extends State<BroadcastScreen> {
             user: item.username,
             userImageUrl: item.userImageUrl, // URL de la imagen de perfil del usuario
             contentType: item.contentType,   // Tipo de contenido: 'album' o 'track'
+            contentId: item.contentId,       // ID del contenido en Spotify
           ),
         ),
       );

@@ -89,8 +89,8 @@ class AudioPlayerService with ChangeNotifier {
     await _audioPlayer.stop();
     _currentlyPlayingId = null;
   }
-  
-  /// Libera recursos
+    /// Libera recursos
+  @override
   void dispose() {
     _audioPlayer.dispose();
     super.dispose();

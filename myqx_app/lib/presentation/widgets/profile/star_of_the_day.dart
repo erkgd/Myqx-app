@@ -16,6 +16,32 @@ class StarOfTheDay extends StatelessWidget {
     required this.songName,
     required this.spotifyUrl,
   }) : super(key: key);
+  
+  /// Extrae el ID de Spotify de una URL completa
+  String _extractSpotifyId(String url) {
+    // Formato típico: https://open.spotify.com/album/1234567890 o https://open.spotify.com/track/1234567890
+    final Uri uri = Uri.parse(url);
+    final List<String> segments = uri.pathSegments;
+    
+    if (segments.length >= 2) {
+      return segments.last; // El último segmento es el ID
+    }
+    
+    // Fallback, devolver un fragmento de la URL como ID
+    return url.split('/').last;
+  }
+  
+  /// Determina el tipo de contenido (album o track) de una URL de Spotify
+  String _extractContentType(String url) {
+    if (url.contains('/album/')) {
+      return 'album';
+    } else if (url.contains('/track/')) {
+      return 'track';
+    } else {
+      // Valor predeterminado si no se puede determinar el tipo
+      return 'track';
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -109,11 +135,15 @@ class StarOfTheDay extends StatelessWidget {
                     
                     // Pequeño espacio entre los metadatos y el icono
                     const SizedBox(width: 8),
-                    
-                    // Logo de Spotify a la derecha de los metadatos
-                    SpotifyLink(
-                      songUrl: Uri.parse(spotifyUrl),
-                      size: 24,
+                      // Logo de Spotify a la derecha de los metadatos                    
+                    SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: SpotifyLink(
+                        contentId: _extractSpotifyId(spotifyUrl),
+                        contentType: _extractContentType(spotifyUrl),
+                        size: 24,
+                      ),
                     ),
                   ],
                 ),

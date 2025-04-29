@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:myqx_app/presentation/widgets/broadcast/ratedmusicwidgets/rating.dart';
 import 'package:myqx_app/presentation/widgets/spotify/add_to_playlist.dart';
+import 'package:myqx_app/presentation/widgets/spotify/spotify_like_button.dart'; // Nuevo import para el botón de me gusta
 import 'package:myqx_app/presentation/widgets/spotify/spotify_link.dart';
 import 'package:myqx_app/presentation/widgets/spotify/user_circle.dart';
 import 'package:myqx_app/presentation/widgets/spotify/music_cover.dart';
@@ -15,8 +16,9 @@ class RatedMusic extends StatelessWidget {
   final String? review;
   final int rating;
   final String user;
-  final String userImageUrl; // Nuevo parámetro para la foto de perfil
-  final String contentType; // Parámetro para saber si es álbum o canción
+  final String userImageUrl; // URL de la foto de perfil del usuario
+  final String contentType; // Tipo de contenido ('album' o 'track')
+  final String contentId;   // ID del contenido en Spotify
 
   const RatedMusic({
     super.key,
@@ -26,8 +28,9 @@ class RatedMusic extends StatelessWidget {
     this.review,
     required this.rating,
     required this.user,
-    required this.userImageUrl, // Añadido como parámetro requerido
-    required this.contentType,  // Añadido como parámetro requerido ('album' o 'track')
+    required this.userImageUrl,
+    required this.contentType,
+    this.contentId = '',  // Parámetro opcional con valor por defecto
   });
 
   @override
@@ -57,7 +60,7 @@ class RatedMusic extends StatelessWidget {
               border: Border.all(color: Colors.white, width: 0.5),
             ),
             child: Text(
-              contentType == 'album' ? 'ALBUM' : 'TRACK',
+              contentType == 'album' ? 'ÁLBUM' : 'CANCIÓN',
               style: const TextStyle(
                 color: Colors.white,
                 fontSize: 10.0,
@@ -152,14 +155,19 @@ class RatedMusic extends StatelessWidget {
                               artist: artist, 
                               musicname: musicname
                             ),
-                          ),
-                          // ICONOS DE SPOTIFY PEGADOS A LOS METADATOS
+                          ),                          // ICONOS DE SPOTIFY PEGADOS A LOS METADATOS
                           SpotifyLink(
-                            songUrl: Uri.parse('https://open.spotify.com/intl-es/track/0zn0GmUvU9wkqcj8slROu9?si=9166f09e829b4ccd'), 
+                            contentId: contentId,
+                            contentType: contentType,
                             size: 25
                           ),
-                          const SizedBox(width: 2),
-                          AddToPlaylist(songId: 'songId', size: 25),
+                          const SizedBox(width: 8),
+                          // Botón para añadir a "Me gusta" de Spotify
+                          SpotifyLikeButton(
+                            contentId: contentId,
+                            contentType: contentType,
+                            size: 25,
+                          ),
                         ],
                       ),
                     ),
