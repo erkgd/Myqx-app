@@ -161,7 +161,7 @@ class RatedMusic extends StatelessWidget {
                             contentType: contentType,
                             size: 25
                           ),
-                          const SizedBox(width: 8),
+                          const SizedBox(width: 2),
                           // Botón para añadir a "Me gusta" de Spotify
                           SpotifyLikeButton(
                             contentId: contentId,

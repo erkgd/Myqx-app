@@ -166,8 +166,8 @@ class _SpotifyLikeButtonState extends State<SpotifyLikeButton> {
       child: _isLoading 
           // Estado de carga - un spinner centrado
           ? SizedBox(
-              width: widget.size * 0.8,
-              height: widget.size * 0.8,
+              width: widget.size * 1,
+              height: widget.size * 1,
               child: const CircularProgressIndicator(
                 strokeWidth: 2,
                 valueColor: AlwaysStoppedAnimation<Color>(Colors.green),
@@ -179,21 +179,38 @@ class _SpotifyLikeButtonState extends State<SpotifyLikeButton> {
               constraints: BoxConstraints.tightFor(
                 width: widget.size,
                 height: widget.size,
-              ),
-              icon: _isLiked 
-                ? Icon(
-                    Icons.favorite,
-                    color: const Color(0xFF1DB954),
-                    size: widget.size * 0.8,
+              ),              icon: _isLiked 
+                ? SvgPicture.asset(
+                    'assets/images/spotify-icon-liked.svg',
+                    width: widget.size * 1,
+                    height: widget.size * 1,
+                    colorFilter: const ColorFilter.mode(
+                      Color(0xFF1DB954),
+                      BlendMode.srcIn,
+                    ),
+                    placeholderBuilder: (_) => Icon(
+                      Icons.favorite,
+                      color: const Color(0xFF1DB954),
+                      size: widget.size * 1,
+                    ),
                   )
-                : Icon(
-                    Icons.favorite_border,
-                    color: const Color(0xFF1DB954),
-                    size: widget.size * 0.8,
+                : SvgPicture.asset(
+                    'assets/images/spotify-like-icon.svg',
+                    width: widget.size * 1,
+                    height: widget.size * 1,
+                    colorFilter: const ColorFilter.mode(
+                      Color(0xFFFFFFFF),
+                      BlendMode.srcIn,
+                    ),
+                    placeholderBuilder: (_) => Icon(
+                      Icons.favorite_border,
+                      color: const Color(0xFFFFFFFF),
+                      size: widget.size * 1,
+                    ),
                   ),
               onPressed: _handleLikeToggle,
               iconSize: widget.size,
-              splashRadius: widget.size * 0.7,
+              splashRadius: widget.size * 1,
               tooltip: _isLiked 
                 ? 'Ya está en tus favoritos' 
                 : 'Añadir a tus favoritos de Spotify',
