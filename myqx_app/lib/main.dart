@@ -113,6 +113,16 @@ class AuthWrapper extends StatefulWidget {
   State<AuthWrapper> createState() => _AuthWrapperState();
 }
 
+
+
+
+
+
+
+
+
+
+
 class _AuthWrapperState extends State<AuthWrapper> with WidgetsBindingObserver {
   bool _initialCheckDone = false;
   
@@ -129,13 +139,34 @@ class _AuthWrapperState extends State<AuthWrapper> with WidgetsBindingObserver {
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
-  
-  @override
+    @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      // Al volver al primer plano, verificar si el estado de autenticación ha cambiado
-      debugPrint('[DEBUG] AuthWrapper: App volvió al primer plano, verificando estado de autenticación');
-      _checkAuthState();
+      // Al volver al primer plano, solo verificamos que el token aún sea válido
+      // sin limpiar la sesión si la app estuvo en segundo plano
+      debugPrint('[DEBUG] AuthWrapper: App volvió al primer plano, verificando si el token sigue válido');
+      _checkTokenStillValid();
+    }
+  }
+  
+  // Método para verificar que el token sigue siendo válido sin limpiar la sesión
+  Future<void> _checkTokenStillValid() async {
+    final authService = Provider.of<AuthService>(context, listen: false);
+    
+    try {
+      // Verificar si hay un token almacenado y si es válido
+      final hasToken = await authService.hasStoredToken();
+      
+      if (hasToken) {
+        final isValid = await authService.verifyToken();
+          // Si el token es válido, nos aseguramos que isAuthenticated sea true
+        if (isValid && !authService.isAuthenticated.value) {
+          authService.isAuthenticated.value = true;
+          // No necesitamos llamar a notifyListeners() porque ValueNotifier ya notifica
+        }
+      }
+    } catch (e) {
+      debugPrint('[DEBUG] AuthWrapper: Error al verificar token: $e');
     }
   }
   
@@ -183,25 +214,24 @@ class _AuthWrapperState extends State<AuthWrapper> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
-    // Obtenemos el estado de autenticación
     final authService = Provider.of<AuthService>(context);
-    
-    // Si no hemos completado la verificación inicial, mostrar loader
+
+    // Si no hemos completado la verificación inicial, mostrar loader y forzar el chequeo
     if (!_initialCheckDone) {
+      // Llama a _checkAuthState si aún no se ha hecho
+      Future.microtask(() => _checkAuthState());
       return const Scaffold(
         body: Center(
           child: CircularProgressIndicator(),
         ),
       );
     }
-    
     return ValueListenableBuilder<bool>(
       valueListenable: authService.isLoading,
       builder: (context, isLoading, _) {
         return ValueListenableBuilder<bool>(
           valueListenable: authService.isAuthenticated,
           builder: (context, isAuthenticated, _) {
-            // Si está cargando, mostrar un indicador de carga
             if (isLoading) {
               return const Scaffold(
                 body: Center(
@@ -209,14 +239,10 @@ class _AuthWrapperState extends State<AuthWrapper> with WidgetsBindingObserver {
                 ),
               );
             }
-            
-            // Si está autenticado, mostramos la aplicación principal
             if (isAuthenticated) {
               debugPrint('[DEBUG] AuthWrapper: Usuario autenticado, mostrando AppScaffold');
               return const AppScaffold();
             }
-            
-            // Si no está autenticado, mostramos la pantalla de login
             debugPrint('[DEBUG] AuthWrapper: Usuario no autenticado, mostrando LoginScreen');
             return const LoginScreen();
           },

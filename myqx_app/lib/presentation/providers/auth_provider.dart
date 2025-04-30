@@ -125,6 +125,14 @@ class AuthService extends ChangeNotifier {
     try {
       debugPrint('[DEBUG] Forzando limpieza completa del estado de autenticación');
       
+      // 0. Limpiar perfil y caché de Spotify (importante para evitar datos residuales)
+      try {
+        await SpotifyProfileService().clear();
+        debugPrint('[DEBUG] Perfil de Spotify limpiado');
+      } catch (e) {
+        debugPrint('[DEBUG] Error al limpiar perfil de Spotify: $e');
+      }
+
       // 1. Limpiar todo el almacenamiento seguro
       await _secureStorage.clearAuthData();
       
@@ -139,18 +147,15 @@ class AuthService extends ChangeNotifier {
       
       // 3. Limpiar cachés de búsqueda y calificaciones
       try {
-        // Acceder directamente a los servicios ya que están importados
         final spotifySearchService = SpotifySearchService();
         spotifySearchService.clearCache();
         debugPrint('[DEBUG] Caché de búsqueda de Spotify limpiada');
         
-        // Limpiar caché de calificaciones
         final ratingService = SearchService();
         ratingService.clearRatingsCache();
         debugPrint('[DEBUG] Caché de calificaciones limpiada');
       } catch (e) {
         debugPrint('[DEBUG] Error al limpiar cachés: $e');
-        // Continuamos con el proceso aunque falle esto
       }
       
       // 4. Resetear el estado observable

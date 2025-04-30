@@ -3,6 +3,7 @@ import 'package:myqx_app/core/constants/corporative_colors.dart';
 import 'package:myqx_app/presentation/providers/auth_provider.dart';
 import 'package:myqx_app/presentation/screens/login_screen.dart';
 import 'package:provider/provider.dart';
+import 'dart:io' show exit;
 
 class LogoutButton extends StatelessWidget {
   const LogoutButton({Key? key}) : super(key: key);
@@ -42,17 +43,23 @@ class LogoutButton extends StatelessWidget {
             debugPrint('[DEBUG] Cierre de sesión completado exitosamente');
           } catch (e) {
             debugPrint('[DEBUG] Error durante el cierre de sesión: $e');
-          } finally {
+          }          finally {
             // Cerrar el indicador de carga
             Navigator.of(context).pop();
             
-            // Navegar a la pantalla de login y limpiar el historial de navegación
-            Navigator.of(context).pushAndRemoveUntil(
-              MaterialPageRoute(
-                builder: (context) => const LoginScreen(),
+            // Mostrar mensaje antes de cerrar
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Cerrando la aplicación...'),
+                duration: Duration(milliseconds: 800),
               ),
-              (route) => false,
             );
+            
+            // Esperar un momento para que el usuario vea el mensaje
+            await Future.delayed(const Duration(milliseconds: 1000));
+            
+            // Cerrar completamente la aplicación
+            exit(0);
           }
         },
         style: OutlinedButton.styleFrom(
