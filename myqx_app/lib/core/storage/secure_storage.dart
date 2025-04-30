@@ -97,8 +97,14 @@ class SecureStorage {
     }
   }
   Future<void> deleteUserId() async {
-    // Replace 'user_id' with the actual key you use for storing the user ID
-    await _storage.delete(key: 'user_id');
+    debugPrint('🗑️🗑️🗑️ SecureStorage: ELIMINANDO USER ID 🗑️🗑️🗑️');
+    try {
+      await _storage.delete(key: _userIdKey);
+      debugPrint('✅✅✅ SecureStorage: ID DE USUARIO ELIMINADO EXITOSAMENTE ✅✅✅');
+    } catch (e) {
+      debugPrint('❌❌❌ SecureStorage: ERROR AL ELIMINAR ID DE USUARIO: $e ❌❌❌');
+      rethrow;
+    }
   }
 
   // Métodos para datos de usuario (como JSON string)

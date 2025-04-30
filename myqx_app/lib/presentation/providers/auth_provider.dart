@@ -9,6 +9,7 @@ import 'package:myqx_app/core/services/spotify_search_service.dart';
 import 'package:myqx_app/domain/models/user_model.dart';
 import 'package:myqx_app/domain/models/auth_response_model.dart';
 import 'package:myqx_app/presentation/providers/spotify_auth_provider.dart';
+import 'package:myqx_app/core/services/spotify_profile_service.dart';
 
 /// Servicio unificado para gestionar la autenticación con APIs y Spotify
 class AuthService extends ChangeNotifier {
@@ -298,7 +299,7 @@ class AuthService extends ChangeNotifier {
       errorMessage.value = null;
       
       debugPrint('[DEBUG] Iniciando proceso de logout...');
-      
+      await SpotifyProfileService().clear();
       // 1. Desconectar Spotify si está conectado (con mejor manejo de errores)
       try {
         debugPrint('[DEBUG] Desconectando Spotify...');

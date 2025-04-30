@@ -7,6 +7,8 @@ import 'package:myqx_app/presentation/widgets/profile/star_of_the_day.dart';
 import 'package:myqx_app/presentation/widgets/profile/top_artists_chart.dart';
 import 'package:myqx_app/presentation/widgets/profile/top_five_albums.dart';
 import 'package:myqx_app/presentation/widgets/spotify/open_spotify_button.dart';
+import 'package:myqx_app/presentation/providers/auth_provider.dart';
+import 'package:provider/provider.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -54,7 +56,9 @@ class _ProfileScreenState extends State<ProfileScreen> with WidgetsBindingObserv
     }
     try {
       debugPrint("[DEBUG] Profile: Cargando datos del perfil");
-      await _profileService.initialize();
+      final authProvider = Provider.of<AuthService>(context, listen: false);
+      final currentUserId = authProvider.currentUser.value?.id;
+      await _profileService.initialize(currentUserId: currentUserId); // <-- Pasa el id aquí
       debugPrint("[DEBUG] Profile: Datos del perfil cargados exitosamente");
     } catch (e) {
       debugPrint("[ERROR] Failed to load profile data: $e");

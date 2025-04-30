@@ -33,21 +33,39 @@ class SpotifyProfileService with ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
   
+  Future<void> clear() async {
+    _currentUser = null;
+    _topTracks = [];
+    _topAlbums = [];
+    _topArtists = [];
+    _starOfTheDay = null;
+    _isLoading = false;
+    _errorMessage = null;
+
+    // Limpia SharedPreferences
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('spotify_user');
+    await prefs.remove('spotify_top_tracks');
+    await prefs.remove('spotify_top_albums');
+    await prefs.remove('spotify_top_artists');
+    await prefs.remove('spotify_star_track');
+    await prefs.remove('spotify_last_update');
+
+    notifyListeners();
+  }
+
+
   // Initialize the service and load data
-  Future<void> initialize({bool forceRefresh = false}) async {
+  Future<void> initialize({bool forceRefresh = false, String? currentUserId}) async {
     _setLoading(true);
     try {
-      // Si no estamos forzando actualización, intentamos cargar datos guardados
       if (!forceRefresh) {
-        final dataLoaded = await _loadDataFromPreferences();
-        
-        // Si tenemos datos y no necesitamos actualizar, terminamos
+        final dataLoaded = await _loadDataFromPreferences(currentUserId: currentUserId);
         if (dataLoaded && !await _needsRefresh()) {
           _setLoading(false);
           return;
         }
       }
-      
       // Si llegamos aquí, necesitamos cargar datos de la API
       await _loadUserProfile();
       await Future.wait([
@@ -80,16 +98,24 @@ class SpotifyProfileService with ChangeNotifier {
   }
   
   // Cargar datos desde SharedPreferences
-  Future<bool> _loadDataFromPreferences() async {
+  Future<bool> _loadDataFromPreferences({String? currentUserId}) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       
       // Cargar usuario
       final userJson = prefs.getString('spotify_user');
       if (userJson != null) {
-        final userData = json.decode(userJson);
-        _currentUser = SpotifyUser.fromJson(userData);
+      final userData = json.decode(userJson);
+      final loadedUser = SpotifyUser.fromJson(userData);
+
+      // Validar usuario
+      if (currentUserId != null && loadedUser.id != currentUserId) {
+        debugPrint('[DEBUG] Usuario cacheado no coincide con el autenticado. Limpiando perfil.');
+        await clear();
+        return false;
       }
+      _currentUser = loadedUser;
+    }
       
       // Cargar tracks
       final tracksJson = prefs.getString('spotify_top_tracks');
