@@ -96,6 +96,10 @@ class SecureStorage {
       return null;
     }
   }
+  Future<void> deleteUserId() async {
+    // Replace 'user_id' with the actual key you use for storing the user ID
+    await _storage.delete(key: 'user_id');
+  }
 
   // Métodos para datos de usuario (como JSON string)
   Future<void> saveUserData(String userData) async {
