@@ -3,6 +3,7 @@ import 'package:myqx_app/core/http/api_client.dart';
 import 'package:myqx_app/core/storage/secure_storage.dart';
 import 'package:myqx_app/data/models/spotify_models.dart';
 
+/// Servicio para cargar y gestionar perfiles de usuarios no afiliados
 class UnaffiliatedProfileService extends ChangeNotifier {
   final ApiClient _apiClient;
   final SecureStorage _secureStorage;
@@ -30,6 +31,15 @@ class UnaffiliatedProfileService extends ChangeNotifier {
     _apiClient = apiClient ?? ApiClient(),
     _secureStorage = secureStorage ?? SecureStorage();
 
+  // Caché de perfiles para carga rápida
+  static final Map<String, Map<String, dynamic>> _profileCache = {};
+  
+  // Timestamp de última actualización para cada perfil
+  static final Map<String, DateTime> _lastFetchTime = {};
+  
+  // Duración de validez de la caché (10 minutos)
+  static const Duration _cacheDuration = Duration(minutes: 10);
+  
   // Método para cargar datos de perfil por ID de usuario
   Future<void> loadProfileById(String userId) async {
     if (_isLoading) return;
@@ -41,92 +51,122 @@ class UnaffiliatedProfileService extends ChangeNotifier {
     try {
       debugPrint('[DEBUG] Cargando perfil no afiliado con ID: $userId');
       
-      final response = await _apiClient.get('/users/$userId/profile');
+      // Verificar si tenemos datos en caché y si son recientes
+      final bool hasCachedData = _profileCache.containsKey(userId);
+      final bool isCacheValid = hasCachedData && 
+          (_lastFetchTime[userId]?.isAfter(DateTime.now().subtract(_cacheDuration)) ?? false);
       
-      // Log completo para depuración
-      debugPrint('[DEBUG] Respuesta completa del perfil: ${response.toString()}');
-      
-      // Verificar si la respuesta tiene la estructura esperada
-      if (response['data'] != null) {
-        debugPrint('[DEBUG] Usando datos del campo "data" de la respuesta');
-        final data = response['data'];
-        
-        // Procesar datos básicos del usuario
-        if (data['user'] != null) {
-          _profileUser = SpotifyUser(
-            id: data['user']?['spotifyId'] ?? '',
-            displayName: data['user']?['username'] ?? data['username'] ?? 'Usuario',
-            email: null,
-            imageUrl: data['user']?['profileImage'] ?? data['profileImage'],
-            spotifyUrl: data['user']?['spotifyUrl'] ?? 'https://open.spotify.com/',
-            followers: 0,
-          );
-        } else {
-          // Intentar con la estructura directa si no hay 'user' en 'data'
-          _profileUser = SpotifyUser(
-            id: data['spotifyId'] ?? '',
-            displayName: data['username'] ?? 'Usuario',
-            email: null,
-            imageUrl: data['profileImage'],
-            spotifyUrl: data['spotifyUrl'] ?? 'https://open.spotify.com/',
-            followers: 0,
-          );
-        }
-        
-        // Procesar álbumes
-        _topAlbums = [];
-        if (data['top_albums'] != null) {
-          debugPrint('[DEBUG] Procesando ${data['top_albums'].length} álbumes');
-          for (final album in data['top_albums']) {
-            _topAlbums.add(SpotifyAlbum(
-              id: album['id'] ?? '',
-              name: album['name'] ?? 'Unknown Album',
-              artistName: album['artist_name'] ?? 'Unknown Artist',
-              artistId: album['artist_id'] ?? '',
-              coverUrl: album['image_url'] ?? '',
-              releaseDate: album['release_date'] ?? '2025-01-01',
-              totalTracks: album['total_tracks'] ?? 1,
-              spotifyUrl: album['spotify_url'] ?? '',
-            ));
-          }
-        }
-        
-        // Procesar canción destacada del día
-        if (data['star_track'] != null) {
-          final track = data['star_track'];
-          debugPrint('[DEBUG] Procesando canción destacada: ${track['name'] ?? 'Unknown'}');
-          try {
-            _starOfTheDay = SpotifyTrack(
-              id: track['id'] ?? '',
-              name: track['name'] ?? 'Unknown Track',
-              artistName: track['artist_name'] ?? 'Unknown Artist',
-              albumName: track['album_name'] ?? '',
-              imageUrl: track['image_url'] ?? '',
-              spotifyUrl: track['spotify_url'] ?? '',
-              albumId: track['album_id'], // Parámetro opcional
-            );
-          } catch (e) {
-            debugPrint('[ERROR] Error al crear SpotifyTrack: $e');
-            _starOfTheDay = null;
-          }
-        }
-        
-        // Procesar compatibilidad
-        _compatibility = data['compatibility']?.toDouble() ?? 0.0;
-        
-      } else {
-        // Si no hay campo 'data' en la respuesta, intentar procesar directamente
-        debugPrint('[DEBUG] Estructura de respuesta inesperada, intentando procesar directamente');
-        _processDirectResponse(response);
+      // Si hay caché válida, usarla primero (mientras se actualiza en segundo plano)
+      if (isCacheValid) {
+        debugPrint('[DEBUG] Usando datos en caché para perfil $userId');
+        _processCachedData(userId);
+        // Notificar para mostrar inmediatamente los datos en caché
+        notifyListeners();
       }
       
-      debugPrint('[DEBUG] Perfil no afiliado cargado con éxito');
+      // Si la caché no es válida o necesitamos actualizar de todos modos
+      if (!isCacheValid || hasCachedData) {
+        final response = await _apiClient.get('/users/$userId/profile');
+        
+        // Guardar en caché
+        _profileCache[userId] = response;
+        _lastFetchTime[userId] = DateTime.now();
+        
+        // Procesar la respuesta
+        _processApiResponse(response);
+        
+        debugPrint('[DEBUG] Perfil no afiliado actualizado con éxito');
+      }
     } catch (e) {
       debugPrint('[ERROR] Error al cargar perfil no afiliado: ${e.toString()}');
       _errorMessage = 'Error al cargar los datos del perfil: ${e.toString()}';
     } finally {
       _isLoading = false;
       notifyListeners();
+    }
+  }
+  
+  // Método para procesar datos en caché
+  void _processCachedData(String userId) {
+    final cachedData = _profileCache[userId];
+    if (cachedData != null) {
+      _processApiResponse(cachedData);
+    }
+  }
+  
+  // Método para procesar la respuesta de la API
+  void _processApiResponse(Map<String, dynamic> response) {
+    // Verificar si la respuesta tiene la estructura esperada
+    if (response['data'] != null) {
+      final data = response['data'];
+      _processResponseData(data);
+    } else {
+      // Si no hay campo 'data' en la respuesta, intentar procesar directamente
+      _processDirectResponse(response);
+    }
+  }
+  
+  // Método para procesar los datos de la respuesta
+  void _processResponseData(Map<String, dynamic> data) {
+    try {
+      // Procesar datos básicos del usuario
+      if (data['user'] != null) {
+        _profileUser = SpotifyUser(
+          id: data['user']?['spotifyId'] ?? '',
+          displayName: data['user']?['username'] ?? data['username'] ?? 'Usuario',
+          email: null,
+          imageUrl: data['user']?['profileImage'] ?? data['profileImage'],
+          spotifyUrl: data['user']?['spotifyUrl'] ?? 'https://open.spotify.com/',
+          followers: 0,
+        );
+      } else {
+        // Intentar con la estructura directa
+        _profileUser = SpotifyUser(
+          id: data['spotifyId'] ?? '',
+          displayName: data['username'] ?? 'Usuario',
+          email: null,
+          imageUrl: data['profileImage'],
+          spotifyUrl: data['spotifyUrl'] ?? 'https://open.spotify.com/',
+          followers: 0,
+        );
+      }
+      
+      // Procesar álbumes
+      _topAlbums = [];
+      if (data['top_albums'] != null) {
+        for (final album in data['top_albums']) {
+          _topAlbums.add(SpotifyAlbum(
+            id: album['id'] ?? '',
+            name: album['name'] ?? 'Unknown Album',
+            artistName: album['artist_name'] ?? 'Unknown Artist',
+            artistId: album['artist_id'] ?? '',
+            coverUrl: album['image_url'] ?? '',
+            releaseDate: album['release_date'] ?? '2025-01-01',
+            totalTracks: album['total_tracks'] ?? 1,
+            spotifyUrl: album['spotify_url'] ?? '',
+          ));
+        }
+      }
+      
+      // Procesar canción destacada
+      if (data['star_track'] != null) {
+        final track = data['star_track'];
+        _starOfTheDay = SpotifyTrack(
+          id: track['id'] ?? '',
+          name: track['name'] ?? 'Unknown Track',
+          artistName: track['artist_name'] ?? 'Unknown Artist',
+          albumName: track['album_name'] ?? '',
+          imageUrl: track['image_url'] ?? '',
+          spotifyUrl: track['spotify_url'] ?? '',
+          albumId: track['album_id'],
+        );
+      }
+      
+      // Procesar compatibilidad
+      _compatibility = data['compatibility']?.toDouble() ?? 0.0;
+    } catch (e) {
+      debugPrint('[ERROR] Error al procesar datos de perfil: $e');
+      // Si ocurre un error, no actualizamos los datos para mantener los anteriores
     }
   }
   
@@ -270,6 +310,46 @@ class UnaffiliatedProfileService extends ChangeNotifier {
       _compatibility = response['compatibility']?.toDouble() ?? 0.0;
     } catch (e) {
       debugPrint('[ERROR] Error al procesar respuesta directa: $e');
+    }
+  }
+  
+  /// Método para precargar perfiles populares o recomendados
+  /// Útil para cargar en segundo plano perfiles que el usuario probablemente visite
+  Future<void> preloadPopularProfiles(List<String> userIds) async {
+    if (userIds.isEmpty) return;
+    
+    debugPrint('[DEBUG] Precargando ${userIds.length} perfiles populares');
+    
+    // Limitamos la cantidad de perfiles a precargar para no sobrecargar la red
+    final limitedIds = userIds.length > 5 ? userIds.sublist(0, 5) : userIds;
+    
+    // No notificamos cambios ya que esto se hace en segundo plano
+    try {
+      for (final userId in limitedIds) {
+        // Verificamos si ya tenemos el perfil en caché y si es reciente
+        final bool hasCachedData = _profileCache.containsKey(userId);
+        final bool isCacheValid = hasCachedData && 
+            (_lastFetchTime[userId]?.isAfter(DateTime.now().subtract(_cacheDuration)) ?? false);
+        
+        // Si no tenemos caché o está desactualizada, cargar
+        if (!isCacheValid) {
+          debugPrint('[DEBUG] Precargando perfil: $userId');
+          
+          // Agregamos un pequeño retardo para no saturar la API
+          await Future.delayed(const Duration(milliseconds: 500));
+          
+          final response = await _apiClient.get('/users/$userId/profile');
+          
+          // Guardar en caché
+          _profileCache[userId] = response;
+          _lastFetchTime[userId] = DateTime.now();
+          
+          debugPrint('[DEBUG] Perfil $userId precargado con éxito');
+        }
+      }
+    } catch (e) {
+      // Capturamos errores pero no los propagamos ya que esto es una mejora opcional
+      debugPrint('[WARNING] Error al precargar perfiles: $e');
     }
   }
 }

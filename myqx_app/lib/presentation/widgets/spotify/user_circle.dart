@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:myqx_app/core/constants/corporative_colors.dart';
+import 'package:myqx_app/core/services/performance_service.dart';
+import 'package:myqx_app/presentation/widgets/general/lazy_image.dart';
 
 class UserCircle extends StatelessWidget {
   final String username;
@@ -59,20 +61,22 @@ class UserCircle extends StatelessWidget {
                 color: CorporativeColors.mainColor,
                 width: 2.0,
               ),
-            ),
-            child: ClipOval(
+            ),            child: ClipOval(
               child: imageUrl.isNotEmpty 
-                ? FadeInImage.assetNetwork(
-                    placeholder: 'assets/images/Logo_squared.png',
-                    image: imageUrl,
+                ? LazyImage(
+                    imageUrl: imageUrl,
+                    width: imageSize,
+                    height: imageSize,
                     fit: BoxFit.cover,
-                    fadeInDuration: const Duration(milliseconds: 300),
-                    fadeOutDuration: const Duration(milliseconds: 100),
-                    imageErrorBuilder: (context, error, stackTrace) {
-                      debugPrint('[USER_CIRCLE] ⚠️ Error al cargar la imagen: $error para URL: $imageUrl');
-                      debugPrint('[USER_CIRCLE] 🔍 URL exacta que falló: "$imageUrl"');
-                      return _buildPlaceholderAvatar();
-                    },
+                    placeholder: Container(
+                      color: Colors.grey[300],
+                      child: Image.asset(
+                        'assets/images/Logo_squared.png',
+                        width: imageSize * 0.7,
+                        height: imageSize * 0.7,
+                      ),
+                    ),
+                    errorWidget: _buildPlaceholderAvatar(),
                   )
                 : _buildPlaceholderAvatar(),
             ),

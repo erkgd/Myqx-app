@@ -5,6 +5,7 @@ import 'package:myqx_app/core/services/audio_player_service.dart';
 import 'package:myqx_app/core/services/rating_service.dart';
 import 'package:myqx_app/core/services/broadcast_service.dart';
 import 'package:myqx_app/core/services/svg_safe_service.dart';
+import 'package:myqx_app/core/services/performance_service.dart';
 import 'package:myqx_app/presentation/providers/navigation_provider.dart';
 import 'package:myqx_app/presentation/providers/auth_provider.dart';
 import 'package:myqx_app/presentation/providers/spotify_auth_provider.dart';
@@ -37,14 +38,52 @@ Future<void> _preloadSvgAssets() async {
   }
 }
 
+/// Preload essential resources for the app
+Future<void> _preloadResources() async {
+  debugPrint('[APP_INIT] Starting resource preloading');
+  
+  try {
+    // Perform preloading tasks in parallel for faster startup
+    await Future.wait([
+      // Precargar SVGs
+      _preloadSvgAssets(),
+      
+      // Initialize performance optimizations
+      _initializePerformanceService(),
+    ]);
+    
+    debugPrint('[APP_INIT] Resource preloading completed');
+  } catch (e) {
+    // Handle errors but continue app initialization
+    debugPrint('[APP_INIT] Error during resource preloading: $e');
+  }
+}
+
+/// Initialize performance service and preload common resources
+Future<void> _initializePerformanceService() async {
+  try {
+    // Initialize performance service
+    final performanceService = PerformanceService();
+    await performanceService.prewarmApp();
+    
+    // Configure image cache for better performance
+    PaintingBinding.instance.imageCache.maximumSizeBytes = 1024 * 1024 * 100; // 100 MB
+    PaintingBinding.instance.imageCache.maximumSize = 150; // 150 images
+    
+    debugPrint('[APP_INIT] Performance service initialized');
+  } catch (e) {
+    debugPrint('[APP_INIT] Error initializing performance service: $e');
+  }
+}
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
   // Check app version and clear caches if needed
   await CacheManager().checkAndClearCachesOnVersionChange();
   
-  // Precargar todos los SVGs para validarlos y evitar errores durante la ejecución
-  await _preloadSvgAssets();
+  // Inicializar servicios en paralelo para mejorar tiempo de inicio
+  await _preloadResources();
   
   // Configurar el manejo global de errores para evitar que los errores de SVG causen fallos en la app
   FlutterError.onError = (FlutterErrorDetails details) {
@@ -113,16 +152,6 @@ class AuthWrapper extends StatefulWidget {
   State<AuthWrapper> createState() => _AuthWrapperState();
 }
 
-
-
-
-
-
-
-
-
-
-
 class _AuthWrapperState extends State<AuthWrapper> with WidgetsBindingObserver {
   bool _initialCheckDone = false;
   
@@ -186,10 +215,9 @@ class _AuthWrapperState extends State<AuthWrapper> with WidgetsBindingObserver {
         
         if (isValid) {
           // Si el token es válido, asegurar que estamos marcados como autenticados
-          debugPrint('[DEBUG] AuthWrapper: Token válido, actualizando estado de autenticación');
-          if (!authService.isAuthenticated.value) {
+          debugPrint('[DEBUG] AuthWrapper: Token válido, actualizando estado de autenticación');          if (!authService.isAuthenticated.value) {
             authService.isAuthenticated.value = true;
-            authService.notifyListeners();
+            // La notificación ocurrirá automáticamente por el ValueNotifier
           }
         } else {
           // Si el token no es válido, limpiar estado
