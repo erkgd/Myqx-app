@@ -6,7 +6,9 @@ import 'package:myqx_app/data/models/spotify_models.dart';
 /// Servicio para cargar y gestionar perfiles de usuarios no afiliados
 ///
 /// Este servicio proporciona métodos para cargar perfiles de usuarios desde la API:
-/// - Endpoint principal: /api/profile/{userId} para obtener datos completos del perfil
+/// - Endpoint principal: /profile/{userId} para obtener datos completos del perfil
+/// - Endpoint para estados de seguimiento: /users/following/status/{userId}
+/// - Endpoint para seguir/dejar de seguir: /users/following/{id_follower}/{id_followed}
 /// 
 /// Principales características:
 /// - Caché automática de perfiles con tiempo de expiración configurable
@@ -109,11 +111,10 @@ class UnaffiliatedProfileService extends ChangeNotifier {
   /// [userId] - ID del usuario cuyo perfil queremos obtener
   /// Retorna true si la operación fue exitosa
   Future<bool> fetchProfileFromApi(String userId) async {
-    try {
-      debugPrint('[DEBUG] Solicitando perfil a la API para ID: $userId');
+    try {      debugPrint('[DEBUG] Solicitando perfil a la API para ID: $userId');
       
-      // Realizar petición a la nueva ruta de la API
-      final response = await _apiClient.get('/api/profile/$userId', requiresAuth: true);
+      // Realizar petición a la ruta correcta de la API
+      final response = await _apiClient.get('/profile/$userId', requiresAuth: true);
       
       debugPrint('[DEBUG] Respuesta de la API de perfil obtenida con éxito');
       
@@ -294,9 +295,8 @@ class UnaffiliatedProfileService extends ChangeNotifier {
         debugPrint('[ERROR] No se pudo obtener el ID del usuario actual para verificar seguimiento');
         return false;
       }
-      
-      // Utilizamos la ruta correcta según la API
-      final response = await _apiClient.get('/api/following/status/$currentUserId/$userId');
+        // Utilizamos la ruta correcta según la API
+      final response = await _apiClient.get('/users/following/status/$userId');
       debugPrint('[DEBUG] Estado de seguimiento: ${response.toString()}');
       return response['is_following'] ?? false;
     } catch (e) {
@@ -313,11 +313,10 @@ class UnaffiliatedProfileService extends ChangeNotifier {
         debugPrint('[ERROR] No se pudo obtener el ID del usuario actual para seguir');
         return false;
       }
+        // Usar el formato correcto de la ruta: /users/following/{id_follower}/{id_followed}
+      final response = await _apiClient.post('/users/following/$currentUserId/$userId');
       
-      // Usar el formato correcto de la ruta: /api/following/{id_follower}/{id_followed}
-      final response = await _apiClient.post('/api/following/$currentUserId/$userId');
-      
-      debugPrint('[DEBUG] Petición de seguir enviada a: /api/following/$currentUserId/$userId');
+      debugPrint('[DEBUG] Petición de seguir enviada a: /users/following/$currentUserId/$userId');
       debugPrint('[DEBUG] Respuesta del servidor: ${response.toString()}');
       
       return response['success'] ?? false;
@@ -337,11 +336,10 @@ class UnaffiliatedProfileService extends ChangeNotifier {
         debugPrint('[ERROR] No se pudo obtener el ID del usuario actual para dejar de seguir');
         return false;
       }
+        // Usar el formato correcto de la ruta: /users/following/{id_follower}/{id_followed}
+      final response = await _apiClient.delete('/users/following/$currentUserId/$userId');
       
-      // Usar el formato correcto de la ruta: /api/following/{id_follower}/{id_followed}
-      final response = await _apiClient.delete('/api/following/$currentUserId/$userId');
-      
-      debugPrint('[DEBUG] Petición de dejar de seguir enviada a: /api/following/$currentUserId/$userId');
+      debugPrint('[DEBUG] Petición de dejar de seguir enviada a: /users/following/$currentUserId/$userId');
       debugPrint('[DEBUG] Respuesta del servidor: ${response.toString()}');
       
       return response['success'] ?? false;
