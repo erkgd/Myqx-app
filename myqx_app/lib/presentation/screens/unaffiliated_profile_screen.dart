@@ -41,16 +41,17 @@ class _UnaffiliatedProfileScreenState extends State<UnaffiliatedProfileScreen> w
   
   late final UnaffiliatedProfileService _profileService;
   final PerformanceService _performanceService = PerformanceService();
-  
   @override
   void initState() {
     super.initState();
+    
+    // Inicializar el servicio con las dependencias necesarias
     _profileService = UnaffiliatedProfileService();
     
-    // Registrar observer
+    // Registrar observer para ciclo de vida de la app
     WidgetsBinding.instance.addObserver(this);
     
-    // Cargar datos
+    // Cargar datos del perfil inmediatamente al abrir la pantalla
     _loadProfileDataProgressive();
   }
   
@@ -145,8 +146,7 @@ class _UnaffiliatedProfileScreenState extends State<UnaffiliatedProfileScreen> w
       }
     }
   }
-  
-  Future<void> _loadFollowingStatus() async {
+    Future<void> _loadFollowingStatus() async {
     try {
       final isFollowing = await _profileService.isFollowing(widget.userId);
       if (mounted) {
@@ -159,6 +159,7 @@ class _UnaffiliatedProfileScreenState extends State<UnaffiliatedProfileScreen> w
       debugPrint("[ERROR] Error checking follow status: $e");
     }
   }
+
   
   Future<void> _loadCompatibilityData() async {
     try {
@@ -585,7 +586,8 @@ class _UnaffiliatedProfileScreenState extends State<UnaffiliatedProfileScreen> w
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   mainAxisAlignment: MainAxisAlignment.center,
-                  children: [                    Expanded(
+                  children: [                    
+                    Expanded(
                       flex: 7,
                       child: starTrack != null ? StarOfTheDay(
                         albumCoverUrl: starTrack.imageUrl ?? '',

@@ -4,6 +4,14 @@ import 'package:myqx_app/core/storage/secure_storage.dart';
 import 'package:myqx_app/data/models/spotify_models.dart';
 
 /// Servicio para cargar y gestionar perfiles de usuarios no afiliados
+///
+/// Este servicio proporciona métodos para cargar perfiles de usuarios desde la API:
+/// - Endpoint principal: /api/profile/{userId} para obtener datos completos del perfil
+/// 
+/// Principales características:
+/// - Caché automática de perfiles con tiempo de expiración configurable
+/// - Carga progresiva mostrando datos en caché mientras se actualizan en segundo plano
+/// - Precarga de perfiles populares para mejorar la experiencia de usuario
 class UnaffiliatedProfileService extends ChangeNotifier {
   final ApiClient _apiClient;
   final SecureStorage _secureStorage;
@@ -40,7 +48,9 @@ class UnaffiliatedProfileService extends ChangeNotifier {
   // Duración de validez de la caché (10 minutos)
   static const Duration _cacheDuration = Duration(minutes: 10);
   
-  // Método para cargar datos de perfil por ID de usuario
+  /// Método principal para cargar perfil de usuario no afiliado
+  ///
+  /// Este método primero verifica en caché y luego hace una petición a la API si es necesario
   Future<void> loadProfileById(String userId) async {
     if (_isLoading) return;
     
@@ -59,74 +69,113 @@ class UnaffiliatedProfileService extends ChangeNotifier {
       // Si hay caché válida, usarla primero (mientras se actualiza en segundo plano)
       if (isCacheValid) {
         debugPrint('[DEBUG] Usando datos en caché para perfil $userId');
-        _processCachedData(userId);
+        _processApiResponse(_profileCache[userId]!);
+        
         // Notificar para mostrar inmediatamente los datos en caché
+        _isLoading = false;
         notifyListeners();
+        
+        // Si la caché es reciente pero no fresca (más de 2 minutos),
+        // actualizamos en segundo plano sin bloquear la UI
+        if (_lastFetchTime[userId]!.isBefore(DateTime.now().subtract(const Duration(minutes: 2)))) {
+          _updateProfileInBackground(userId);
+        } else {
+          debugPrint('[DEBUG] Caché muy reciente, omitiendo actualización en segundo plano');
+        }
+        return;
       }
       
-      // Si la caché no es válida o necesitamos actualizar de todos modos
-      if (!isCacheValid || hasCachedData) {
-        final response = await _apiClient.get('/users/$userId/profile');
-        
-        // Guardar en caché
-        _profileCache[userId] = response;
-        _lastFetchTime[userId] = DateTime.now();
-        
-        // Procesar la respuesta
-        _processApiResponse(response);
-        
-        debugPrint('[DEBUG] Perfil no afiliado actualizado con éxito');
+      // Si no hay caché válida, hacer la petición a la API
+      final success = await fetchProfileFromApi(userId);
+      
+      // Si falla la petición a la API, mostramos error
+      if (!success) {
+        _errorMessage = 'No se pudieron cargar los datos del perfil';
       }
+      
+      _isLoading = false;
+      notifyListeners();
+      
     } catch (e) {
-      debugPrint('[ERROR] Error al cargar perfil no afiliado: ${e.toString()}');
+      debugPrint('[ERROR] Error al cargar el perfil: ${e.toString()}');
       _errorMessage = 'Error al cargar los datos del perfil: ${e.toString()}';
-    } finally {
       _isLoading = false;
       notifyListeners();
     }
   }
-  
-  // Método para procesar datos en caché
-  void _processCachedData(String userId) {
-    final cachedData = _profileCache[userId];
-    if (cachedData != null) {
-      _processApiResponse(cachedData);
+
+  /// Realiza una petición a la API de perfiles
+  ///
+  /// [userId] - ID del usuario cuyo perfil queremos obtener
+  /// Retorna true si la operación fue exitosa
+  Future<bool> fetchProfileFromApi(String userId) async {
+    try {
+      debugPrint('[DEBUG] Solicitando perfil a la API para ID: $userId');
+      
+      // Realizar petición a la nueva ruta de la API
+      final response = await _apiClient.get('/api/profile/$userId', requiresAuth: true);
+      
+      debugPrint('[DEBUG] Respuesta de la API de perfil obtenida con éxito');
+      
+      // Guardar en caché para futuros accesos
+      _profileCache[userId] = response;
+      _lastFetchTime[userId] = DateTime.now();
+      
+      // Procesar la respuesta
+      _processApiResponse(response);
+      
+      return true;
+    } catch (e) {
+      debugPrint('[ERROR] Error al solicitar perfil desde la API: ${e.toString()}');
+      _errorMessage = 'Error al solicitar perfil desde la API: ${e.toString()}';
+      return false;
     }
   }
   
-  // Método para procesar la respuesta de la API
+  /// Actualiza el perfil en segundo plano sin bloquear la UI
+  void _updateProfileInBackground(String userId) async {
+    try {
+      debugPrint('[DEBUG] Actualizando perfil en segundo plano: $userId');
+      final success = await fetchProfileFromApi(userId);
+      
+      if (success) {
+        debugPrint('[DEBUG] Perfil actualizado en segundo plano exitosamente');
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('[WARNING] Error en actualización de perfil en segundo plano: ${e.toString()}');
+      // No actualizamos el estado de error ya que esto es en segundo plano
+    }
+  }
+  
+  /// Procesa la respuesta de la API
   void _processApiResponse(Map<String, dynamic> response) {
-    // Verificar si la respuesta tiene la estructura esperada
-    if (response['data'] != null) {
-      final data = response['data'];
-      _processResponseData(data);
-    } else {
-      // Si no hay campo 'data' en la respuesta, intentar procesar directamente
-      _processDirectResponse(response);
+    try {
+      // Verificar si la respuesta tiene la estructura esperada
+      if (response['data'] != null) {
+        debugPrint('[DEBUG] Usando datos del campo "data" de la respuesta');
+        _processResponseData(response['data']);
+      } else {
+        debugPrint('[DEBUG] Respuesta sin campo "data", procesando directamente');
+        _processDirectResponse(response);
+      }
+    } catch (e) {
+      debugPrint('[ERROR] Error al procesar respuesta de la API: $e');
+      _errorMessage = 'Error al procesar la respuesta: ${e.toString()}';
     }
   }
   
-  // Método para procesar los datos de la respuesta
+  /// Método para procesar los datos de la respuesta cuando están en el campo 'data'
   void _processResponseData(Map<String, dynamic> data) {
     try {
       // Procesar datos básicos del usuario
       if (data['user'] != null) {
         _profileUser = SpotifyUser(
-          id: data['user']?['spotifyId'] ?? '',
-          displayName: data['user']?['username'] ?? data['username'] ?? 'Usuario',
+          id: data['user']['spotifyId'] ?? '',
+          displayName: data['user']['username'] ?? 'Usuario',
           email: null,
-          imageUrl: data['user']?['profileImage'] ?? data['profileImage'],
-          spotifyUrl: data['user']?['spotifyUrl'] ?? 'https://open.spotify.com/',
-          followers: 0,
-        );
-      } else {
-        // Intentar con la estructura directa
-        _profileUser = SpotifyUser(
-          id: data['spotifyId'] ?? '',
-          displayName: data['username'] ?? 'Usuario',
-          email: null,
-          imageUrl: data['profileImage'],
-          spotifyUrl: data['spotifyUrl'] ?? 'https://open.spotify.com/',
+          imageUrl: data['user']['profileImage'],
+          spotifyUrl: data['user']['spotifyUrl'] ?? 'https://open.spotify.com/',
           followers: 0,
         );
       }
@@ -170,83 +219,7 @@ class UnaffiliatedProfileService extends ChangeNotifier {
     }
   }
   
-  // Método para comprobar si el usuario actual sigue al usuario del perfil
-  Future<bool> isFollowing(String userId) async {
-    try {
-      final response = await _apiClient.get('/users/following/status/$userId');
-      debugPrint('[DEBUG] Estado de seguimiento: ${response.toString()}');
-      return response['is_following'] ?? false;
-    } catch (e) {
-      debugPrint('[ERROR] Error al verificar si sigue al usuario: ${e.toString()}');
-      return false;
-    }
-  }
-    // Método para seguir a un usuario
-  Future<bool> followUser(String userId) async {
-    try {
-      // Obtener el ID del usuario actual
-      final currentUserId = await _secureStorage.getUserId();
-      if (currentUserId == null || currentUserId.isEmpty) {
-        debugPrint('[ERROR] No se pudo obtener el ID del usuario actual para seguir');
-        return false;
-      }
-      
-      // Usar el formato correcto de la ruta: /users/following/{id_follower}/{id_followed}
-      final response = await _apiClient.post('/users/following/$currentUserId/$userId');
-      
-      debugPrint('[DEBUG] Petición de seguir enviada a: /users/following/$currentUserId/$userId');
-      debugPrint('[DEBUG] Respuesta del servidor: ${response.toString()}');
-      
-      return response['success'] ?? false;
-    } catch (e) {
-      debugPrint('[ERROR] Error al seguir al usuario: ${e.toString()}');
-      _errorMessage = 'No se pudo seguir al usuario: ${e.toString()}';
-      notifyListeners();
-      return false;
-    }
-  }
-  
-  // Método para dejar de seguir a un usuario
-  Future<bool> unfollowUser(String userId) async {
-    try {
-      // Obtener el ID del usuario actual
-      final currentUserId = await _secureStorage.getUserId();
-      if (currentUserId == null || currentUserId.isEmpty) {
-        debugPrint('[ERROR] No se pudo obtener el ID del usuario actual para dejar de seguir');
-        return false;
-      }
-      
-      // Usar el formato correcto de la ruta: /users/following/{id_follower}/{id_followed}
-      final response = await _apiClient.delete('/users/following/$currentUserId/$userId');
-      
-      debugPrint('[DEBUG] Petición de dejar de seguir enviada a: /users/following/$currentUserId/$userId');
-      debugPrint('[DEBUG] Respuesta del servidor: ${response.toString()}');
-      
-      return response['success'] ?? false;
-    } catch (e) {
-      debugPrint('[ERROR] Error al dejar de seguir al usuario: ${e.toString()}');
-      _errorMessage = 'No se pudo dejar de seguir al usuario: ${e.toString()}';
-      notifyListeners();
-      return false;
-    }
-  }
-  
-  // Método para calcular compatibilidad
-  double calculateCompatibility() {
-    return _compatibility;
-  }
-  
-  // Método para limpiar todos los datos
-  void clear() {
-    _profileUser = null;
-    _topAlbums = [];
-    _starOfTheDay = null;
-    _errorMessage = null;
-    _compatibility = 0.0;
-    notifyListeners();
-  }
-  
-  // Método para procesar la respuesta cuando viene en formato directo (sin campo 'data')
+  /// Método para procesar la respuesta cuando viene en formato directo (sin campo 'data')
   void _processDirectResponse(Map<String, dynamic> response) {
     try {
       // Procesar usuario
@@ -312,6 +285,88 @@ class UnaffiliatedProfileService extends ChangeNotifier {
       debugPrint('[ERROR] Error al procesar respuesta directa: $e');
     }
   }
+    /// Método para comprobar si el usuario actual sigue al usuario del perfil
+  Future<bool> isFollowing(String userId) async {
+    try {
+      // Obtenemos el ID del usuario actual
+      final currentUserId = await _secureStorage.getUserId();
+      if (currentUserId == null || currentUserId.isEmpty) {
+        debugPrint('[ERROR] No se pudo obtener el ID del usuario actual para verificar seguimiento');
+        return false;
+      }
+      
+      // Utilizamos la ruta correcta según la API
+      final response = await _apiClient.get('/api/following/status/$currentUserId/$userId');
+      debugPrint('[DEBUG] Estado de seguimiento: ${response.toString()}');
+      return response['is_following'] ?? false;
+    } catch (e) {
+      debugPrint('[ERROR] Error al verificar si sigue al usuario: ${e.toString()}');
+      return false;
+    }
+  }
+    /// Método para seguir a un usuario
+  Future<bool> followUser(String userId) async {
+    try {
+      // Obtener el ID del usuario actual
+      final currentUserId = await _secureStorage.getUserId();
+      if (currentUserId == null || currentUserId.isEmpty) {
+        debugPrint('[ERROR] No se pudo obtener el ID del usuario actual para seguir');
+        return false;
+      }
+      
+      // Usar el formato correcto de la ruta: /api/following/{id_follower}/{id_followed}
+      final response = await _apiClient.post('/api/following/$currentUserId/$userId');
+      
+      debugPrint('[DEBUG] Petición de seguir enviada a: /api/following/$currentUserId/$userId');
+      debugPrint('[DEBUG] Respuesta del servidor: ${response.toString()}');
+      
+      return response['success'] ?? false;
+    } catch (e) {
+      debugPrint('[ERROR] Error al seguir al usuario: ${e.toString()}');
+      _errorMessage = 'No se pudo seguir al usuario: ${e.toString()}';
+      notifyListeners();
+      return false;
+    }
+  }
+    /// Método para dejar de seguir a un usuario
+  Future<bool> unfollowUser(String userId) async {
+    try {
+      // Obtener el ID del usuario actual
+      final currentUserId = await _secureStorage.getUserId();
+      if (currentUserId == null || currentUserId.isEmpty) {
+        debugPrint('[ERROR] No se pudo obtener el ID del usuario actual para dejar de seguir');
+        return false;
+      }
+      
+      // Usar el formato correcto de la ruta: /api/following/{id_follower}/{id_followed}
+      final response = await _apiClient.delete('/api/following/$currentUserId/$userId');
+      
+      debugPrint('[DEBUG] Petición de dejar de seguir enviada a: /api/following/$currentUserId/$userId');
+      debugPrint('[DEBUG] Respuesta del servidor: ${response.toString()}');
+      
+      return response['success'] ?? false;
+    } catch (e) {
+      debugPrint('[ERROR] Error al dejar de seguir al usuario: ${e.toString()}');
+      _errorMessage = 'No se pudo dejar de seguir al usuario: ${e.toString()}';
+      notifyListeners();
+      return false;
+    }
+  }
+  
+  /// Método para calcular compatibilidad
+  double calculateCompatibility() {
+    return _compatibility;
+  }
+  
+  /// Método para limpiar todos los datos
+  void clear() {
+    _profileUser = null;
+    _topAlbums = [];
+    _starOfTheDay = null;
+    _errorMessage = null;
+    _compatibility = 0.0;
+    notifyListeners();
+  }
   
   /// Método para precargar perfiles populares o recomendados
   /// Útil para cargar en segundo plano perfiles que el usuario probablemente visite
@@ -338,12 +393,7 @@ class UnaffiliatedProfileService extends ChangeNotifier {
           // Agregamos un pequeño retardo para no saturar la API
           await Future.delayed(const Duration(milliseconds: 500));
           
-          final response = await _apiClient.get('/users/$userId/profile');
-          
-          // Guardar en caché
-          _profileCache[userId] = response;
-          _lastFetchTime[userId] = DateTime.now();
-          
+          await fetchProfileFromApi(userId);
           debugPrint('[DEBUG] Perfil $userId precargado con éxito');
         }
       }
@@ -352,4 +402,5 @@ class UnaffiliatedProfileService extends ChangeNotifier {
       debugPrint('[WARNING] Error al precargar perfiles: $e');
     }
   }
+  
 }

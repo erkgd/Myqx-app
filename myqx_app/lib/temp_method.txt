@@ -1,0 +1,45 @@
+  /// Loads profile data progressively, prioritizing critical UI elements
+  Future<void> _loadProfileDataProgressive() async {
+    if (mounted) {  
+      setState(() {
+        _isLoading = true;
+      });
+    }
+    
+    try {
+      debugPrint("[DEBUG] Profile: Starting progressive loading for ID: ${widget.userId}");
+      
+      // Step 1: Cargar datos del perfil directamente desde la API /api/profile/{userId}
+      final bool success = await _profileService.loadProfileFromBff(widget.userId);
+      
+      if (!success) {
+        // Si falla la carga desde la API de perfil, intentamos con el método tradicional como fallback
+        debugPrint("[DEBUG] Profile: API de perfil falló, intentando método alternativo");
+        await _profileService.loadProfileById(widget.userId);
+      }
+      
+      if (mounted) {
+        setState(() {
+          // We can show the UI now with the user data loaded
+          _isLoading = false;
+        });
+      }
+      
+      // Step 2: Check following status in parallel with other data
+      _loadFollowingStatus();
+      
+      // Step 3: Schedule lower-priority data loading using the performance service
+      _performanceService.scheduleDeferredWork(() {
+        // This will run after the main UI is displayed
+        debugPrint("[DEBUG] Loading additional profile data in background");
+      });
+      
+    } catch (e) {
+      debugPrint("[ERROR] Failed to load initial profile data: $e");
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
