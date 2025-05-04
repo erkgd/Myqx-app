@@ -7,11 +7,17 @@ import 'package:myqx_app/presentation/widgets/general/music_container.dart';
 class UserCompatibility extends StatefulWidget {
   final int compatibilityPercentage;
   final bool loading; // Nuevo parámetro para indicar si está en modo carga
+  final String title; // Título personalizable
+  final String subtitle; // Subtítulo personalizable
+  final String description; // Descripción personalizable
   
   const UserCompatibility({
     super.key, 
     required this.compatibilityPercentage,
     this.loading = false, // Por defecto, no está en modo carga
+    this.title = 'Compatibility',
+    this.subtitle = '',
+    this.description = 'Musical compatibility based on your profiles',
   });
 
   @override
@@ -113,21 +119,11 @@ class _UserCompatibilityState extends State<UserCompatibility> with SingleTicker
     return MusicContainer(
       borderColor: CorporativeColors.mainColor,
       child: Padding(
-        padding: const EdgeInsets.all(12.0),
+        padding: const EdgeInsets.all(4.0),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           mainAxisSize: MainAxisSize.min, // Esto evita que crezca demasiado
-          children: [
-            const Text(
-              'Compatibility',
-              style: TextStyle(
-                fontSize: 14,
-                color: CorporativeColors.mainColor,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-            
-            const SizedBox(height: 12),
+          children: [            
             
             // Número de compatibilidad grande con efecto de fade
             AnimatedBuilder(
@@ -167,9 +163,8 @@ class _UserCompatibilityState extends State<UserCompatibility> with SingleTicker
               ),
             ),
             
-            const SizedBox(height: 12),
-            
-            // Nivel de compatibilidad
+
+              // Nivel de compatibilidad
             Container(
               margin: const EdgeInsets.only(top: 8),
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
@@ -190,6 +185,19 @@ class _UserCompatibilityState extends State<UserCompatibility> with SingleTicker
                 ),
               ),
             ),
+            
+            // Descripción personalizable
+            if (widget.description.isNotEmpty) ...[
+
+              Text(
+                widget.description,
+                style: TextStyle(
+                  fontSize: 11,
+                  color: Colors.white.withOpacity(0.7),
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
           ],
         ),
       ),

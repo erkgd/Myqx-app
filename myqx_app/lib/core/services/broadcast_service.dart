@@ -17,6 +17,13 @@ class BroadcastService extends ChangeNotifier {
   bool _isLoading = false;
   List<FeedItem> _feedItems = [];
   
+  // Variables para control de caché
+  DateTime? _lastFetchTime;
+  static const Duration _cacheDuration = Duration(minutes: 5); // Caché válida por 5 minutos
+  bool get hasCachedData => _feedItems.isNotEmpty;
+  bool get isCacheValid => _lastFetchTime != null && 
+      DateTime.now().difference(_lastFetchTime!) < _cacheDuration;
+  
   // Getters
   String? get errorMessage => _errorMessage;
   bool get isLoading => _isLoading;
@@ -49,7 +56,19 @@ class BroadcastService extends ChangeNotifier {
   /// [limit] - número máximo de ítems a obtener
   /// [offset] - índice desde el cual cargar (para paginación)
   /// [userId] - ID del usuario (opcional, se obtiene del almacenamiento seguro si no se proporciona)
-  Future<List<FeedItem>> getFeed({int limit = 20, int offset = 0, String? userId}) async {
+  /// [forceRefresh] - Forzar actualización incluso si hay datos en caché válidos
+  Future<List<FeedItem>> getFeed({
+    int limit = 20, 
+    int offset = 0, 
+    String? userId,
+    bool forceRefresh = false
+  }) async {
+    // Si tenemos datos en caché válidos y no se fuerza la actualización, devolver el caché
+    if (!forceRefresh && hasCachedData && isCacheValid) {
+      debugPrint('[FEED] Usando datos en caché (última actualización: $_lastFetchTime)');
+      return _feedItems;
+    }
+    
     _setLoading(true);
     _setError(null); // Limpiar errores anteriores
     
@@ -86,6 +105,7 @@ class BroadcastService extends ChangeNotifier {
         
         // Procesar elementos usando un método dedicado
         _feedItems = await _processRawFeedItems(feedData);
+        _lastFetchTime = DateTime.now(); // Actualizar timestamp del caché
         return _feedItems;
       } else {
         _setError('No se encontraron elementos en el feed');

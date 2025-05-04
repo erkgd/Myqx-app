@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:myqx_app/core/constants/corporative_colors.dart';
+import 'package:provider/provider.dart';
+import 'package:myqx_app/presentation/providers/navigation_provider.dart';
 
 class BroadcastActionButton extends StatefulWidget {
   const BroadcastActionButton({Key? key}) : super(key: key);
@@ -37,12 +39,13 @@ class _BroadcastActionButtonState extends State<BroadcastActionButton> with Sing
       }
     });
   }
-
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: () {
-        _showActionMenu(context);
+        // Navegar a la pantalla de búsqueda (índice 3)
+        final navProvider = Provider.of<NavigationProvider>(context, listen: false);
+        navProvider.setCurrentIndex(3);
       },
       child: Container(
         height: 40.0,

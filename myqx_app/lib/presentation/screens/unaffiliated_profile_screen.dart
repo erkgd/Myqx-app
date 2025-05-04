@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:myqx_app/core/constants/corporative_colors.dart';
 import 'package:myqx_app/core/services/unaffiliated_profile_service.dart';
 import 'package:myqx_app/core/services/performance_service.dart';
+import 'package:myqx_app/core/storage/secure_storage.dart';
 import 'package:myqx_app/presentation/widgets/profile/star_of_the_day.dart';
 import 'package:myqx_app/presentation/widgets/profile/top_five_albums.dart';
 import 'package:myqx_app/presentation/widgets/profile/user_compatibility.dart';
@@ -37,10 +38,10 @@ class _UnaffiliatedProfileScreenState extends State<UnaffiliatedProfileScreen> w
   // Progressive loading timeouts for simulation (would be real API calls)
   final Duration _compatibilityLoadTime = const Duration(milliseconds: 500);
   final Duration _starLoadTime = const Duration(milliseconds: 1200);
-  final Duration _albumsLoadTime = const Duration(milliseconds: 2000);
-  
+  final Duration _albumsLoadTime = const Duration(milliseconds: 2000);  
   late final UnaffiliatedProfileService _profileService;
   final PerformanceService _performanceService = PerformanceService();
+  final SecureStorage _secureStorage = SecureStorage();
   @override
   void initState() {
     super.initState();
@@ -98,9 +99,13 @@ class _UnaffiliatedProfileScreenState extends State<UnaffiliatedProfileScreen> w
           _isLoading = false;
         });
       }
-      
-      // Step 2: Check following status in parallel with other data
-      _loadFollowingStatus();
+        // Step 2: Check following status in parallel with other data, solo si el usuario está autenticado
+      final isAuthenticated = await _secureStorage.isAuthenticated();
+      if (isAuthenticated) {
+        _loadFollowingStatus();
+      } else {
+        debugPrint("[INFO] Usuario no autenticado. No se verifica estado de seguimiento");
+      }
       
       // Step 3: Schedule lower-priority data loading using the performance service
       _performanceService.scheduleDeferredWork(() {
@@ -145,18 +150,41 @@ class _UnaffiliatedProfileScreenState extends State<UnaffiliatedProfileScreen> w
         });
       }
     }
-  }
-    Future<void> _loadFollowingStatus() async {
+  }  Future<void> _loadFollowingStatus() async {
+    // Por defecto, asumimos que no se está siguiendo
+    if (mounted) {
+      setState(() {
+        _isFollowing = false;
+      });
+    }
+    
     try {
-      final isFollowing = await _profileService.isFollowing(widget.userId);
-      if (mounted) {
-        setState(() {
-          _isFollowing = isFollowing;
-        });
+      // Ya verificamos la autenticación antes de llamar a este método
+      // Así que podemos asumir que el usuario está autenticado
+      
+      // Verificar si el usuario es el mismo (no se puede seguir a uno mismo)
+      final currentUserId = await _secureStorage.getUserId();
+      if (currentUserId == widget.userId) {
+        debugPrint("[INFO] No se puede seguir a uno mismo");
+        return;
       }
-      debugPrint("[DEBUG] Following status: ${_isFollowing ? 'Following' : 'Not following'}");
+      
+      // Solo verificar estado de seguimiento si los IDs son diferentes
+      try {
+        final isFollowing = await _profileService.isFollowing(widget.userId);
+        if (mounted) {
+          setState(() {
+            _isFollowing = isFollowing;
+          });
+        }
+        debugPrint("[DEBUG] Following status: ${_isFollowing ? 'Following' : 'Not following'}");
+      } catch (apiError) {
+        // Capturar errores específicos de la API
+        debugPrint("[WARNING] Error API al verificar estado de seguimiento: $apiError");
+      }
     } catch (e) {
-      debugPrint("[ERROR] Error checking follow status: $e");
+      // Si hay un error general, lo registramos pero no cambiamos el estado
+      debugPrint("[ERROR] Error general al verificar estado de seguimiento: $e");
     }
   }
 
@@ -383,8 +411,8 @@ class _UnaffiliatedProfileScreenState extends State<UnaffiliatedProfileScreen> w
                 child: imageUrl != null && imageUrl.isNotEmpty
                     ? LazyImage(
                         imageUrl: imageUrl,
-                        width: 160,
-                        height: 160,
+                        width: 100,
+                        height: 100,
                         fit: BoxFit.cover,
                         placeholder: const Center(
                           child: CircularProgressIndicator(
@@ -432,7 +460,8 @@ class _UnaffiliatedProfileScreenState extends State<UnaffiliatedProfileScreen> w
                 SizedBox(
                   width: 90,
                   height: 30,
-                  child: ElevatedButton(                    onPressed: _isFollowActionLoading ? null : () async {
+                  child: ElevatedButton(                    
+                    onPressed: _isFollowActionLoading ? null : () async {
                       // Mostramos el estado de carga específico para el botón
                       setState(() {
                         _isFollowActionLoading = true;
@@ -578,81 +607,120 @@ class _UnaffiliatedProfileScreenState extends State<UnaffiliatedProfileScreen> w
             ),
             
             const SizedBox(height: 15),
-            
-            // Star of the Day and Compatibility
+              // Star of the Day and Compatibility section
             SizedBox(
-              height: 255,
+              height: 255, // Altura aumentada para acomodar los títulos externos
               child: IntrinsicHeight(
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   mainAxisAlignment: MainAxisAlignment.center,
-                  children: [                    
+                  children: [
                     Expanded(
                       flex: 7,
                       child: starTrack != null ? StarOfTheDay(
                         albumCoverUrl: starTrack.imageUrl ?? '',
                         artistName: starTrack.artistName,
                         songName: starTrack.name,
-                        spotifyUrl: starTrack.spotifyUrl,                      
-                        ) : Container(
-                        decoration: BoxDecoration(
-                          color: Colors.black,
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(
-                            color: CorporativeColors.mainColor,
-                            width: 1,
-                          ),
-                        ),
-                        padding: const EdgeInsets.all(16),
-                        child: const Center(
-                          child: Text(
-                            "No star track available",
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w500,
+                        spotifyUrl: starTrack.spotifyUrl,
+                        title: "Top Rated Track",
+                        ) : Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Título externo
+                          const Padding(
+                            padding: EdgeInsets.only(left: 4.0, bottom: 8.0),
+                            child: Text(
+                              "Top Rated Track",
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
                             ),
                           ),
-                        ),
+                          Expanded(
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: Colors.black,
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(
+                                  color: CorporativeColors.mainColor,
+                                  width: 1,
+                                ),
+                              ),
+                              padding: const EdgeInsets.all(16),
+                              child: const Center(
+                                child: Text(
+                                  "No rated tracks available",
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    const SizedBox(width: 5),
+
                     Expanded(
                       flex: 5,
                       child: UserCompatibility(
                         compatibilityPercentage: _profileService.calculateCompatibility().toInt(),
+                        subtitle: 'Average Rating',
+                        description: 'Based on ratings',
                       ),
                     ),
                   ],
                 ),
               ),
             ),
-            
-            const SizedBox(height: 20),
-              // Top 5 albums section with actual data
+          
+            // Ratings section (mostrando como álbumes)
             topAlbums.isNotEmpty ? TopFiveAlbums(
               albums: topAlbums,
-              title: 'Top Albums',
-            ) : Container(
-              padding: const EdgeInsets.all(20),
-              margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),              decoration: BoxDecoration(
-                color: Colors.black,
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(
-                  color: CorporativeColors.mainColor,
-                  width: 1,
-                ),
-              ),
-              child: const Center(
-                child: Text(
-                  "No album data available",
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
+              title: 'Recent Ratings',
+            ) : Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Título fuera del contenedor
+                const Padding(
+                  padding: EdgeInsets.only(left: 4.0, bottom: 8.0),
+                  child: Text(
+                    "Recent Ratings",
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
                   ),
                 ),
-              ),
+                // Contenedor cuando no hay datos
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  margin: const EdgeInsets.symmetric(horizontal: 0, vertical: 0),
+                  decoration: BoxDecoration(
+                    color: Colors.black,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: CorporativeColors.mainColor,
+                      width: 1,
+                    ),
+                  ),
+                  child: const Center(
+                    child: Text(
+                      "No ratings available",
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ],
         ),

@@ -13,31 +13,26 @@ class TopFiveAlbums extends StatelessWidget {
     required this.albums,
     this.loading = false,
     this.title = "Top Albums",
-  }) : super(key: key);
-
-  @override
+  }) : super(key: key);  @override
   Widget build(BuildContext context) {
-    return MusicContainer(
-      borderColor: Colors.white,
-      child: Padding(
-        padding: const EdgeInsets.all(12.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Título
-            const SizedBox(height: 12),
-            
-            // Albums en horizontal
-            SizedBox(
-              height: 110, // Altura fija para la fila de álbumes
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        
+        // Contenedor principal
+        MusicContainer(
+          borderColor: Colors.white,
+          child: Padding(
+            padding: const EdgeInsets.all(12.0),
+            child: SizedBox(
+              height: 110, // Altura ajustada para la fila de álbumes
               child: loading 
                 ? _buildLoadingIndicator()
                 : _buildAlbumsList(),
             ),
-          ],
+          ),
         ),
-      ),
+      ],
     );
   }
   
@@ -72,8 +67,7 @@ class TopFiveAlbums extends StatelessWidget {
       },
     );
   }
-  
-  Widget _buildAlbumCover(SpotifyAlbum album) {
+    Widget _buildAlbumCover(SpotifyAlbum album) {
     return Tooltip(
       message: '${album.name} - ${album.artistName}',
       child: GestureDetector(
@@ -81,7 +75,8 @@ class TopFiveAlbums extends StatelessWidget {
           // Aquí podrías añadir la funcionalidad para abrir el álbum en Spotify
         },
         child: Container(
-          width: 90, // Ancho fijo para cada portada
+          width: 110, // Ancho fijo para cada portada
+          height: 100, // Altura igual al ancho para hacerlo cuadrado
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(8),
             boxShadow: [

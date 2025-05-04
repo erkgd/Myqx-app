@@ -8,6 +8,7 @@ class StarOfTheDay extends StatelessWidget {
   final String artistName;
   final String songName;
   final String spotifyUrl;
+  final String title;
 
   const StarOfTheDay({
     Key? key,
@@ -15,6 +16,7 @@ class StarOfTheDay extends StatelessWidget {
     required this.artistName,
     required this.songName,
     required this.spotifyUrl,
+    this.title = "Star Track",
   }) : super(key: key);
   
   /// Extrae el ID de Spotify de una URL completa
@@ -41,25 +43,33 @@ class StarOfTheDay extends StatelessWidget {
       // Valor predeterminado si no se puede determinar el tipo
       return 'track';
     }
-  }
-
-  @override
+  }  @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
     final targetWidth = screenWidth * 0.55;
     
-    return ConstrainedBox(
-      constraints: BoxConstraints(
-        maxWidth: targetWidth,
-      ),
-      child: MusicContainer(
-        borderColor: Colors.white,
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(8.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // Título de la sección fuera del contenedor
+      
+        
+        // Contenedor principal
+        ConstrainedBox(
+          constraints: BoxConstraints(
+            maxWidth: 500,
+            maxHeight: 255,
+          ),      
+          child: MusicContainer(
+            borderColor: Colors.white,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(8.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.max,
+                children: [
+              
               // Portada del álbum con padding
               Padding(
                 padding: const EdgeInsets.all(12.0),
@@ -95,23 +105,22 @@ class StarOfTheDay extends StatelessWidget {
                   ),
                 ),
               ),
-              
-              // Información de la canción y logo de Spotify en una fila
+                // Información de la canción y logo de Spotify en una fila
               Padding(
                 padding: const EdgeInsets.fromLTRB(12.0, 0.0, 12.0, 12.0),
                 child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     // Columna con artista y nombre de canción
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         mainAxisSize: MainAxisSize.min,
-                        children: [
-                          // Nombre del artista
+                        children: [// Nombre del artista
                           Text(
                             artistName,
                             style: const TextStyle(
-                              fontSize: 14,
+                              fontSize: 13,
                               fontWeight: FontWeight.bold,
                               color: Colors.white,
                             ),
@@ -123,7 +132,7 @@ class StarOfTheDay extends StatelessWidget {
                           Text(
                             songName,
                             style: TextStyle(
-                              fontSize: 12,
+                              fontSize: 11,
                               color: Colors.white.withOpacity(0.8),
                             ),
                             maxLines: 1,
@@ -132,26 +141,26 @@ class StarOfTheDay extends StatelessWidget {
                         ],
                       ),
                     ),
-                    
-                    // Pequeño espacio entre los metadatos y el icono
+                      // Pequeño espacio entre los metadatos y el icono
                     const SizedBox(width: 8),
-                      // Logo de Spotify a la derecha de los metadatos                    
+                    // Logo de Spotify a la derecha de los metadatos                    
                     SizedBox(
-                      width: 24,
-                      height: 24,
+                      width: 20,
+                      height: 20,
                       child: SpotifyLink(
                         contentId: _extractSpotifyId(spotifyUrl),
                         contentType: _extractContentType(spotifyUrl),
-                        size: 24,
+                        size: 20, // Tamaño ligeramente más pequeño
                       ),
-                    ),
-                  ],
+                    ),                  ],
                 ),
               ),
-            ],
+                ],
+              ),
+            ),
           ),
         ),
-      ),
+      ],
     );
   }
 }

@@ -1,7 +1,11 @@
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:myqx_app/core/http/api_client.dart';
 import 'package:myqx_app/core/storage/secure_storage.dart';
+import 'package:myqx_app/core/services/spotify_track_service.dart';
 import 'package:myqx_app/data/models/spotify_models.dart';
+import 'package:myqx_app/core/services/spotify_auth_service.dart';
+import 'package:http/http.dart' as http;
 
 /// Servicio para cargar y gestionar perfiles de usuarios no afiliados
 ///
@@ -17,6 +21,8 @@ import 'package:myqx_app/data/models/spotify_models.dart';
 class UnaffiliatedProfileService extends ChangeNotifier {
   final ApiClient _apiClient;
   final SecureStorage _secureStorage;
+  final SpotifyTrackService _trackService;
+  final SpotifyAuthService _spotifyAuthService = SpotifyAuthService();
   
   // Estado observable
   SpotifyUser? _profileUser;
@@ -37,9 +43,11 @@ class UnaffiliatedProfileService extends ChangeNotifier {
   UnaffiliatedProfileService({
     ApiClient? apiClient,
     SecureStorage? secureStorage,
+    SpotifyTrackService? trackService,
   }) : 
     _apiClient = apiClient ?? ApiClient(),
-    _secureStorage = secureStorage ?? SecureStorage();
+    _secureStorage = secureStorage ?? SecureStorage(),
+    _trackService = trackService ?? SpotifyTrackService();
 
   // Caché de perfiles para carga rápida
   static final Map<String, Map<String, dynamic>> _profileCache = {};
@@ -49,6 +57,11 @@ class UnaffiliatedProfileService extends ChangeNotifier {
   
   // Duración de validez de la caché (10 minutos)
   static const Duration _cacheDuration = Duration(minutes: 10);
+  
+  // Cache para detalles de pistas de Spotify
+  static final Map<String, Map<String, dynamic>> _trackDetailsCache = {};
+  static final Map<String, DateTime> _trackDetailsFetchTime = {};
+  static const Duration _trackCacheDuration = Duration(days: 7); // Caché de 7 días para tracks
   
   /// Método principal para cargar perfil de usuario no afiliado
   ///
@@ -165,66 +178,100 @@ class UnaffiliatedProfileService extends ChangeNotifier {
       _errorMessage = 'Error al procesar la respuesta: ${e.toString()}';
     }
   }
-  
   /// Método para procesar los datos de la respuesta cuando están en el campo 'data'
-  void _processResponseData(Map<String, dynamic> data) {
+  void _processResponseData(Map<String, dynamic> data) async {
     try {
       // Procesar datos básicos del usuario
-      if (data['user'] != null) {
-        _profileUser = SpotifyUser(
-          id: data['user']['spotifyId'] ?? '',
-          displayName: data['user']['username'] ?? 'Usuario',
-          email: null,
-          imageUrl: data['user']['profileImage'],
-          spotifyUrl: data['user']['spotifyUrl'] ?? 'https://open.spotify.com/',
-          followers: 0,
-        );
-      }
+      _profileUser = SpotifyUser(
+        id: data['userId'] ?? data['spotifyId'] ?? '',
+        displayName: data['username'] ?? 'Usuario',
+        email: null,
+        imageUrl: data['profileImage'],
+        spotifyUrl: data['spotifyUrl'] ?? 'https://open.spotify.com/',
+        followers: 0,
+      );
       
-      // Procesar álbumes
+      // Recolectar IDs de pistas para obtener información de Spotify
+      final Set<String> trackIds = {};
+      SpotifyTrack? topRatedTrackTemp;
+      
+      // Procesar canciones de las calificaciones recientes para mostrarlas como álbumes
       _topAlbums = [];
-      if (data['top_albums'] != null) {
-        for (final album in data['top_albums']) {
+      if (data['recentRatings'] != null && data['recentRatings'] is List) {
+        final ratings = data['recentRatings'] as List;
+        // Primero crear álbumes con los datos disponibles
+        for (final rating in ratings) {
+          final trackId = rating['trackId'] ?? '';
+          if (trackId.isNotEmpty) {
+            trackIds.add(trackId);
+          }
+          
           _topAlbums.add(SpotifyAlbum(
-            id: album['id'] ?? '',
-            name: album['name'] ?? 'Unknown Album',
-            artistName: album['artist_name'] ?? 'Unknown Artist',
-            artistId: album['artist_id'] ?? '',
-            coverUrl: album['image_url'] ?? '',
-            releaseDate: album['release_date'] ?? '2025-01-01',
-            totalTracks: album['total_tracks'] ?? 1,
-            spotifyUrl: album['spotify_url'] ?? '',
+            id: trackId,
+            name: rating['title'] ?? 'Pista desconocida',
+            artistName: rating['artist'] ?? 'Artista desconocido',
+            artistId: '', // No disponible en los datos iniciales
+            coverUrl: rating['imageUrl'] ?? '',
+            releaseDate: rating['date']?.toString().split('T')[0] ?? '2025-01-01',
+            totalTracks: 1,
+            spotifyUrl: 'https://open.spotify.com/track/$trackId',
           ));
         }
       }
       
-      // Procesar canción destacada
-      if (data['star_track'] != null) {
-        final track = data['star_track'];
-        _starOfTheDay = SpotifyTrack(
-          id: track['id'] ?? '',
-          name: track['name'] ?? 'Unknown Track',
-          artistName: track['artist_name'] ?? 'Unknown Artist',
-          albumName: track['album_name'] ?? '',
-          imageUrl: track['image_url'] ?? '',
-          spotifyUrl: track['spotify_url'] ?? '',
-          albumId: track['album_id'],
+      // Procesar canción mejor valorada como starOfTheDay
+      if (data['topRatedTrack'] != null) {
+        final track = data['topRatedTrack'];
+        final trackId = track['trackId'] ?? '';
+        
+        if (trackId.isNotEmpty) {
+          trackIds.add(trackId);
+        }
+        
+        topRatedTrackTemp = SpotifyTrack(
+          id: trackId,
+          name: track['title'] ?? 'Pista desconocida',
+          artistName: track['artist'] ?? 'Artista desconocido',
+          albumName: '', // No disponible en los datos iniciales
+          imageUrl: track['imageUrl'],
+          spotifyUrl: 'https://open.spotify.com/track/$trackId',
+          albumId: null,
         );
+        
+        _starOfTheDay = topRatedTrackTemp;
       }
       
-      // Procesar compatibilidad
-      _compatibility = data['compatibility']?.toDouble() ?? 0.0;
+      // Calcular compatibilidad basada en calificaciones promedio
+      _compatibility = data['averageRating'] != null 
+          ? (data['averageRating'] / 5.0) * 100.0 // Convertir de 5 a 100
+          : 0.0;
+          
+      // Iniciar proceso en segundo plano para obtener datos adicionales de Spotify
+      _enrichWithSpotifyData(trackIds.toList());
     } catch (e) {
       debugPrint('[ERROR] Error al procesar datos de perfil: $e');
       // Si ocurre un error, no actualizamos los datos para mantener los anteriores
     }
   }
-  
   /// Método para procesar la respuesta cuando viene en formato directo (sin campo 'data')
-  void _processDirectResponse(Map<String, dynamic> response) {
+  void _processDirectResponse(Map<String, dynamic> response) async {
     try {
-      // Procesar usuario
-      if (response['user'] != null) {
+      // Recolectar IDs de pistas para obtenerlas de Spotify
+      final Set<String> trackIds = {};
+      
+      // Si tenemos datos básicos directamente en el root
+      if (response['userId'] != null || response['username'] != null) {
+        _profileUser = SpotifyUser(
+          id: response['userId'] ?? response['spotifyId'] ?? '',
+          displayName: response['username'] ?? 'Usuario',
+          email: null,
+          imageUrl: response['profileImage'],
+          spotifyUrl: response['spotifyUrl'] ?? 'https://open.spotify.com/',
+          followers: 0,
+        );
+      } 
+      // Formato anterior con campo 'user'
+      else if (response['user'] != null) {
         _profileUser = SpotifyUser(
           id: response['user']['spotifyId'] ?? '',
           displayName: response['user']['username'] ?? 'Usuario',
@@ -233,20 +280,32 @@ class UnaffiliatedProfileService extends ChangeNotifier {
           spotifyUrl: response['user']['spotifyUrl'] ?? 'https://open.spotify.com/',
           followers: 0,
         );
-      } else if (response['username'] != null) {
-        _profileUser = SpotifyUser(
-          id: response['spotifyId'] ?? '',
-          displayName: response['username'] ?? 'Usuario',
-          email: null,
-          imageUrl: response['profileImage'],
-          spotifyUrl: response['spotifyUrl'] ?? 'https://open.spotify.com/',
-          followers: 0,
-        );
       }
       
-      // Procesar álbumes
+      // Procesar ratings como álbumes (nuevo formato)
       _topAlbums = [];
-      if (response['top_albums'] != null) {
+      if (response['recentRatings'] != null && response['recentRatings'] is List) {
+        final ratings = response['recentRatings'] as List;
+        for (final rating in ratings) {
+          final trackId = rating['trackId'] ?? '';
+          if (trackId.isNotEmpty) {
+            trackIds.add(trackId);
+          }
+          
+          _topAlbums.add(SpotifyAlbum(
+            id: trackId,
+            name: rating['title'] ?? 'Pista desconocida',
+            artistName: rating['artist'] ?? 'Artista desconocido',
+            artistId: '', 
+            coverUrl: rating['imageUrl'] ?? '',
+            releaseDate: rating['date']?.toString().split('T')[0] ?? '2025-01-01',
+            totalTracks: 1,
+            spotifyUrl: 'https://open.spotify.com/track/$trackId',
+          ));
+        }
+      } 
+      // Mantener compatibilidad con el formato anterior
+      else if (response['top_albums'] != null) {
         for (final album in response['top_albums']) {
           _topAlbums.add(SpotifyAlbum(
             id: album['id'] ?? '',
@@ -261,14 +320,39 @@ class UnaffiliatedProfileService extends ChangeNotifier {
         }
       }
       
-      // Procesar canción destacada
-      if (response['star_track'] != null) {
+      // Procesar canción destacada (nuevo formato)
+      if (response['topRatedTrack'] != null) {
+        final track = response['topRatedTrack'];
+        final trackId = track['trackId'] ?? '';
+        
+        if (trackId.isNotEmpty) {
+          trackIds.add(trackId);
+        }
+        
+        _starOfTheDay = SpotifyTrack(
+          id: trackId,
+          name: track['title'] ?? 'Pista desconocida',
+          artistName: track['artist'] ?? 'Artista desconocido',
+          albumName: '',
+          imageUrl: track['imageUrl'],
+          spotifyUrl: 'https://open.spotify.com/track/$trackId',
+          albumId: null,
+        );
+      }
+      // Mantener compatibilidad con el formato anterior
+      else if (response['star_track'] != null) {
         final track = response['star_track'];
         try {
+          final trackId = track['id'] ?? '';
+          
+          if (trackId.isNotEmpty) {
+            trackIds.add(trackId);
+          }
+          
           _starOfTheDay = SpotifyTrack(
-            id: track['id'] ?? '',
-            name: track['name'] ?? 'Unknown Track',
-            artistName: track['artist_name'] ?? 'Unknown Artist',
+            id: trackId,
+            name: track['name'] ?? 'Pista desconocida',
+            artistName: track['artist_name'] ?? 'Artista desconocido',
             albumName: track['album_name'] ?? '',
             imageUrl: track['image_url'] ?? '',
             spotifyUrl: track['spotify_url'] ?? '',
@@ -280,13 +364,23 @@ class UnaffiliatedProfileService extends ChangeNotifier {
         }
       }
       
-      // Procesar compatibilidad
-      _compatibility = response['compatibility']?.toDouble() ?? 0.0;
+      // Calcular compatibilidad
+      if (response['averageRating'] != null) {
+        _compatibility = (response['averageRating'] / 5.0) * 100.0; // Convertir de 5 a 100
+      } else {
+        // Formato anterior
+        _compatibility = response['compatibility']?.toDouble() ?? 0.0;
+      }
+      
+      // Enriquecer datos con información de Spotify
+      if (trackIds.isNotEmpty) {
+        _enrichWithSpotifyData(trackIds.toList());
+      }
     } catch (e) {
       debugPrint('[ERROR] Error al procesar respuesta directa: $e');
     }
   }
-    /// Método para comprobar si el usuario actual sigue al usuario del perfil
+  /// Método para comprobar si el usuario actual sigue al usuario del perfil
   Future<bool> isFollowing(String userId) async {
     try {
       // Obtenemos el ID del usuario actual
@@ -295,8 +389,15 @@ class UnaffiliatedProfileService extends ChangeNotifier {
         debugPrint('[ERROR] No se pudo obtener el ID del usuario actual para verificar seguimiento');
         return false;
       }
-        // Utilizamos la ruta correcta según la API
-      final response = await _apiClient.get('/users/following/status/$userId');
+      
+      // Si estamos verificando nuestro propio perfil, no nos podemos seguir a nosotros mismos
+      if (currentUserId == userId) {
+        debugPrint('[INFO] No se puede seguir a uno mismo');
+        return false;
+      }
+      
+      // Utilizamos la ruta correcta según la API: /users/following/status/{id_follower}/{id_followed}
+      final response = await _apiClient.get('/users/following/status/$currentUserId/$userId');
       debugPrint('[DEBUG] Estado de seguimiento: ${response.toString()}');
       return response['is_following'] ?? false;
     } catch (e) {
@@ -350,10 +451,66 @@ class UnaffiliatedProfileService extends ChangeNotifier {
       return false;
     }
   }
-  
   /// Método para calcular compatibilidad
   double calculateCompatibility() {
+    // Asegurarse que la compatibilidad esté entre 0 y 100
+    if (_compatibility < 0) return 0;
+    if (_compatibility > 100) return 100;
     return _compatibility;
+  }
+    /// Método para enriquecer los datos con información de Spotify
+  Future<void> _enrichWithSpotifyData(List<String> trackIds) async {
+    // Si no hay IDs para enriquecer, salir inmediatamente
+    if (trackIds.isEmpty) {
+      return;
+    }
+    
+    debugPrint('[DEBUG] Enriqueciendo ${trackIds.length} pistas con datos de Spotify');
+    
+    try {
+      // Obtener detalles de todas las pistas
+      final spotifyTracks = await _trackService.getTracksById(trackIds);
+      if (spotifyTracks.isEmpty) {
+        debugPrint('[WARNING] No se pudieron obtener detalles de Spotify para ninguna pista');
+        return;
+      }
+      
+      debugPrint('[DEBUG] Obtenidos detalles para ${spotifyTracks.length} pistas');
+      
+      // Crear un mapa para acceso rápido por ID
+      final Map<String, SpotifyTrack> tracksMap = {
+        for (var track in spotifyTracks) track.id: track
+      };
+      
+      // Actualizar la pista mejor valorada con datos de Spotify
+      if (_starOfTheDay != null && tracksMap.containsKey(_starOfTheDay!.id)) {
+        _starOfTheDay = tracksMap[_starOfTheDay!.id];
+      }
+      
+      // Actualizar los álbumes (que son en realidad pistas)
+      for (int i = 0; i < _topAlbums.length; i++) {
+        final albumId = _topAlbums[i].id; // En realidad es un trackId
+        if (tracksMap.containsKey(albumId)) {
+          final track = tracksMap[albumId]!;
+          _topAlbums[i] = SpotifyAlbum(
+            id: albumId,
+            name: track.name,
+            artistName: track.artistName,
+            artistId: '', // No disponible fácilmente
+            coverUrl: track.imageUrl ?? '',
+            releaseDate: _topAlbums[i].releaseDate,
+            totalTracks: 1,
+            spotifyUrl: track.spotifyUrl,
+          );
+        }
+      }
+      
+      // Notificar a los oyentes sobre los cambios
+      notifyListeners();
+      
+    } catch (e) {
+      debugPrint('[ERROR] Error al enriquecer datos con Spotify: $e');
+    }
   }
   
   /// Método para limpiar todos los datos
@@ -401,4 +558,94 @@ class UnaffiliatedProfileService extends ChangeNotifier {
     }
   }
   
+  /// Método para obtener detalles de una pista de Spotify por su ID
+  /// Retorna un mapa con la información o null si ocurre algún error
+  Future<Map<String, dynamic>?> _getTrackDetailsFromSpotify(String trackId) async {
+    try {
+      // Verificar si tenemos los detalles en caché y no han expirado
+      final bool hasCachedData = _trackDetailsCache.containsKey(trackId);
+      final bool isCacheValid = hasCachedData && 
+          (_trackDetailsFetchTime[trackId]?.isAfter(DateTime.now().subtract(_trackCacheDuration)) ?? false);
+      
+      if (isCacheValid) {
+        debugPrint('[DEBUG] Usando datos en caché para track $trackId');
+        return _trackDetailsCache[trackId];
+      }
+      
+      // Obtener token de autenticación para Spotify
+      final token = await _spotifyAuthService.getAccessToken();
+      
+      if (token == null) {
+        debugPrint('[ERROR] No se pudo obtener el token de autenticación de Spotify');
+        return null;
+      }
+      
+      // Realizar petición directa al endpoint de tracks de Spotify
+      final response = await http.get(
+        Uri.parse('https://api.spotify.com/v1/tracks/$trackId'),
+        headers: {
+          'Authorization': 'Bearer $token',
+        },
+      );
+      
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        // Guardar en caché
+        _trackDetailsCache[trackId] = data;
+        _trackDetailsFetchTime[trackId] = DateTime.now();
+        
+        debugPrint('[DEBUG] Detalles de track obtenidos con éxito: ${data['name']}');
+        return data;
+      } else {
+        debugPrint('[ERROR] Error al obtener datos de track. Código: ${response.statusCode}');
+        debugPrint('[ERROR] Respuesta: ${response.body}');
+        return null;
+      }
+    } catch (e) {
+      debugPrint('[ERROR] Error al obtener detalles del track $trackId: $e');
+      return null;
+    }
+  }
+  
+  /// Convierte los datos de una pista de Spotify al modelo SpotifyTrack
+  SpotifyTrack _convertSpotifyDataToTrack(Map<String, dynamic> data) {
+    String? imageUrl;
+    if (data['album'] != null && 
+        data['album']['images'] != null && 
+        data['album']['images'].isNotEmpty) {
+      imageUrl = data['album']['images'][0]['url'];
+    }
+    
+    String artistName = 'Artista desconocido';
+    if (data['artists'] != null && data['artists'].isNotEmpty) {
+      artistName = data['artists'][0]['name'];
+    }
+    
+    return SpotifyTrack(
+      id: data['id'] ?? '',
+      name: data['name'] ?? 'Pista desconocida',
+      artistName: artistName,
+      albumName: data['album']?['name'] ?? '',
+      imageUrl: imageUrl,
+      spotifyUrl: data['external_urls']?['spotify'] ?? '',
+      albumId: data['album']?['id'],
+      previewUrl: data['preview_url'],
+    );
+  }
+  
+  /// Método para enriquecer una pista con datos de Spotify
+  /// Retorna una nueva instancia de SpotifyTrack con los datos completos
+  Future<SpotifyTrack> _enrichTrackWithSpotifyData(SpotifyTrack track) async {
+    if (track.id.isEmpty) {
+      return track;
+    }
+    
+    final spotifyData = await _getTrackDetailsFromSpotify(track.id);
+    
+    if (spotifyData == null) {
+      return track; // Retornar el track original si no pudimos obtener datos
+    }
+    
+    return _convertSpotifyDataToTrack(spotifyData);
+  }
 }

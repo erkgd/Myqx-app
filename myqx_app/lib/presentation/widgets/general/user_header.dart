@@ -104,7 +104,7 @@ class _UserHeaderState extends State<UserHeader> {
         Container(
           padding: const EdgeInsets.only(top: 8.0),
           child: AppBar(
-            toolbarHeight: 70.0,
+            toolbarHeight: 50.0,
             backgroundColor: Colors.transparent,
             leading: Padding(
               padding: const EdgeInsets.only(left: 4.0),
@@ -112,20 +112,22 @@ class _UserHeaderState extends State<UserHeader> {
                 icon: const Icon(Icons.search, color: Colors.white, size: 28.0),
                 onPressed: () {
                   final navProvider = Provider.of<NavigationProvider>(context, listen: false);
-                  navProvider.setCurrentIndex(3); // Usando el nuevo método para ir a la pantalla de búsqueda
+                  navProvider.setCurrentIndex(3);
                 },
               ),
             ),
             title: const SizedBox(),
             actions: [
               Padding(
-                padding: const EdgeInsets.only(right: 12.0, top: 8.0),                child: GestureDetector(
+                padding: const EdgeInsets.only(right: 12.0, top: 8.0),                
+                child: GestureDetector(
                   onTap: () {
                     final navProvider = Provider.of<NavigationProvider>(context, listen: false);
                     navProvider.setCurrentIndex(0);
                   },
                   child: _isLoading
-                      ? _buildLoadingAvatar()                      : SizedBox(
+                      ? _buildLoadingAvatar()                      
+                      : SizedBox(
                           height: widget.imageSize, // Usar el tamaño pasado como parámetro
                           child: UserCircle(
                             username: displayName,
@@ -150,7 +152,7 @@ class _UserHeaderState extends State<UserHeader> {
           Positioned(
             left: 0,
             right: 0,
-            bottom: -2,
+            bottom: -7,
             child: Center(
               child: BroadcastActionButton(), // Usar el nuevo ActionButton encapsulado
             ),
