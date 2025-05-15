@@ -6,6 +6,7 @@ import 'package:myqx_app/core/http/api_client.dart';
 import 'package:myqx_app/core/storage/secure_storage.dart';
 import 'package:myqx_app/core/services/spotify_album_service.dart';
 import 'package:myqx_app/core/services/spotify_auth_service.dart';
+import 'package:myqx_app/core/utils/rating_cache.dart';
 import 'package:myqx_app/data/models/feed_item.dart';
 
 /// Servicio para gestionar el feed de contenido calificado
@@ -421,9 +422,22 @@ class BroadcastService extends ChangeNotifier {
       _safeNotify();
     }
   }
-  
   /// Actualiza el feed obteniendo datos nuevos desde el servidor
+  /// Limpia la caché de calificaciones y obtiene datos frescos
   Future<void> refreshFeed({String? userId}) async {
-    await getFeed(userId: userId);
+    // Limpiar la caché de calificaciones antes de obtener nuevos datos
+    await RatingCache().clearAll();
+    debugPrint('[FEED][REFRESH] Rating cache cleared before refreshing feed');
+    
+    // Anular el tiempo de última actualización para forzar nueva petición
+    _lastFetchTime = null;
+    
+    // Limpiar los elementos actuales del feed para evitar mostrar datos antiguos
+    _feedItems = [];
+    
+    // Forzar la actualización del feed desde el servidor con datos completamente nuevos
+    await getFeed(userId: userId, forceRefresh: true);
+    
+    debugPrint('[FEED][REFRESH] Feed refreshed with new data from server');
   }
 }

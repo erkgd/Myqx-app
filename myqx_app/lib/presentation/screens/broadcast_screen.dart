@@ -35,21 +35,32 @@ class _BroadcastScreenState extends State<BroadcastScreen> {
       _initialLoadDone = true;
     }
   }  // Método para cargar el feed desde el BFF
-  Future<void> _loadFeed() async {
+  Future<void> _loadFeed({bool forceRefresh = false}) async {
     // Accedemos al provider después de que el widget esté completamente construido
     final broadcastService = Provider.of<BroadcastService>(context, listen: false);
     
+    // No establecer _isLoading = true cuando se usa con RefreshIndicator (pull-to-refresh)
+    // porque el RefreshIndicator ya muestra su propio indicador de carga
+    if (!forceRefresh && mounted) {
+      setState(() {
+        _isLoading = true;
+        _errorMessage = null;
+      });
+    }
+    
     try {
-      if (mounted) {
-        setState(() {
-          _isLoading = true;
-          _errorMessage = null;
-        });
+      // Si se solicita forzar la recarga, usar refreshFeed para limpiar la caché y hacer una nueva petición
+      List<FeedItem> feed;
+      if (forceRefresh) {
+        debugPrint('[BROADCAST] Forzando recarga completa del feed y limpiando caché');
+        await broadcastService.refreshFeed();
+        feed = broadcastService.feedItems;
+        debugPrint('[BROADCAST] Feed recargado con ${feed.length} elementos');
+      } else {
+        // Comportamiento normal, usar datos en caché si están disponibles
+        feed = await broadcastService.getFeed();
       }
       
-      // Obtener el feed del servicio sin utilizar directamente los callbacks de estado
-      // del servicio para evitar conflictos con el ciclo de construcción
-      final feed = await broadcastService.getFeed();
       if (mounted) {
         setState(() {
           _feedItems = feed;
@@ -63,6 +74,7 @@ class _BroadcastScreenState extends State<BroadcastScreen> {
           _isLoading = false;
         });
       }
+      debugPrint('[BROADCAST][ERROR] Error al recargar el feed: $e');
     }
   }
   @override
@@ -134,9 +146,10 @@ class _BroadcastScreenState extends State<BroadcastScreen> {
               const Text(
                 'No hay actividad en el feed',
                 style: TextStyle(color: Colors.white),
-              ),              const SizedBox(height: 24),
+              ),              
+              const SizedBox(height: 24),              
               ElevatedButton(
-                onPressed: () => _loadFeed(),
+                onPressed: () => _loadFeed(forceRefresh: true),
                 child: const Text('Actualizar'),
               )
             ],
@@ -179,13 +192,12 @@ class _BroadcastScreenState extends State<BroadcastScreen> {
         feedWidgets.add(Divisor());
       }
     }
-    
-    // Mostrar feed con pull-to-refresh para actualización
+      // Mostrar feed con pull-to-refresh para actualización
     return Scaffold(
       appBar: const UserHeader(showCircle: true),
       backgroundColor: Colors.transparent,
       body: RefreshIndicator(
-        onRefresh: _loadFeed,
+        onRefresh: () => _loadFeed(forceRefresh: true),
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
           child: Column(
