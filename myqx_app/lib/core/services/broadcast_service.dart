@@ -421,10 +421,14 @@ class BroadcastService extends ChangeNotifier {
       // Notificar los cambios de estado de manera segura
       _safeNotify();
     }
-  }
-  /// Actualiza el feed obteniendo datos nuevos desde el servidor
+  }  /// Actualiza el feed obteniendo datos nuevos desde el servidor
   /// Limpia la caché de calificaciones y obtiene datos frescos
   Future<void> refreshFeed({String? userId}) async {
+    // Establecer estado de carga y notificar para que la UI muestre el indicador
+    _setLoading(true);
+    _setError(null);
+    notifyListeners();
+    
     // Limpiar la caché de calificaciones antes de obtener nuevos datos
     await RatingCache().clearAll();
     debugPrint('[FEED][REFRESH] Rating cache cleared before refreshing feed');
@@ -435,9 +439,47 @@ class BroadcastService extends ChangeNotifier {
     // Limpiar los elementos actuales del feed para evitar mostrar datos antiguos
     _feedItems = [];
     
-    // Forzar la actualización del feed desde el servidor con datos completamente nuevos
-    await getFeed(userId: userId, forceRefresh: true);
-    
-    debugPrint('[FEED][REFRESH] Feed refreshed with new data from server');
+    try {
+      // Obtener el userId desde el almacenamiento seguro si no se proporciona
+      final String? storedUserId = await _secureStorage.getUserId();
+      final String userIdToUse = userId ?? storedUserId ?? '';
+      
+      if (userIdToUse.isEmpty) {
+        throw Exception('No se pudo obtener el ID del usuario');
+      }
+      
+      // Realizar la petición directamente al endpoint para garantizar datos frescos
+      final endpoint = '/feed?limit=20&offset=0&user_id=$userIdToUse';
+      debugPrint('[FEED][REFRESH] Realizando nueva petición a: $endpoint');
+      
+      final response = await _apiClient.get(endpoint);
+      
+      late List<dynamic> feedData;
+      
+      // Compatibilidad con dos estructuras de respuesta
+      if (response['items'] != null) {
+        feedData = response['items'];
+      } else if (response['data'] != null) {
+        feedData = response['data'];
+      } else {
+        throw Exception('Formato de respuesta no reconocido');
+      }
+      
+      if (feedData.isNotEmpty) {
+        _feedItems = await _processRawFeedItems(feedData);
+        _lastFetchTime = DateTime.now();
+        debugPrint('[FEED][REFRESH] Feed actualizado con ${_feedItems.length} elementos nuevos');
+      } else {
+        _setError('No se encontraron elementos en el feed');
+        debugPrint('[FEED][REFRESH] No se encontraron elementos en el feed');
+      }
+    } catch (e) {
+      _setError('Error al recargar el feed: ${e.toString()}');
+      debugPrint('[FEED][REFRESH][ERROR] $_errorMessage');
+    } finally {
+      _setLoading(false);
+      notifyListeners();
+      debugPrint('[FEED][REFRESH] Proceso de actualización completado');
+    }
   }
 }

@@ -231,4 +231,19 @@ class SpotifyTrackService {
     _trackDetailsFetchTime.clear();
     debugPrint('[DEBUG] Caché de tracks limpiada');
   }
+  
+  /// Limpia la caché de tracks específicos por ID
+  void clearCacheForTracks(List<String> trackIds) {
+    if (trackIds.isEmpty) return;
+    
+    int cleared = 0;
+    for (final trackId in trackIds) {
+      if (_trackDetailsCache.containsKey(trackId)) {
+        _trackDetailsCache.remove(trackId);
+        _trackDetailsFetchTime.remove(trackId);
+        cleared++;
+      }
+    }
+    debugPrint('[DEBUG] Se limpió la caché para $cleared/${trackIds.length} tracks');
+  }
 }

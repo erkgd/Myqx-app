@@ -458,12 +458,30 @@ class UnaffiliatedProfileService extends ChangeNotifier {
     if (_compatibility > 100) return 100;
     return _compatibility;
   }
-    /// Método para enriquecer los datos con información de Spotify
+  // Flag para evitar llamadas simultáneas al enriquecimiento de datos
+  bool _isEnrichingData = false;
+  // Flag para indicar que los datos están completamente cargados
+  bool _dataFullyLoaded = false;
+  
+  // Getter para saber si los datos están completamente cargados
+  bool get dataFullyLoaded => _dataFullyLoaded;
+  
+  /// Método para enriquecer los datos con información de Spotify
   Future<void> _enrichWithSpotifyData(List<String> trackIds) async {
-    // Si no hay IDs para enriquecer, salir inmediatamente
+    // Si no hay IDs para enriquecer o ya está en proceso, salir inmediatamente
     if (trackIds.isEmpty) {
+      debugPrint('[WARNING] No hay IDs de pistas para enriquecer');
       return;
     }
+    
+    // Evitar llamadas simultáneas al mismo método
+    if (_isEnrichingData) {
+      debugPrint('[INFO] Ya se está ejecutando el enriquecimiento de datos, ignorando llamada');
+      return;
+    }
+    
+    _isEnrichingData = true;
+    _dataFullyLoaded = false; // Comenzando la carga completa
     
     debugPrint('[DEBUG] Enriqueciendo ${trackIds.length} pistas con datos de Spotify');
     
@@ -472,6 +490,7 @@ class UnaffiliatedProfileService extends ChangeNotifier {
       final spotifyTracks = await _trackService.getTracksById(trackIds);
       if (spotifyTracks.isEmpty) {
         debugPrint('[WARNING] No se pudieron obtener detalles de Spotify para ninguna pista');
+        _isEnrichingData = false;
         return;
       }
       
@@ -486,8 +505,7 @@ class UnaffiliatedProfileService extends ChangeNotifier {
       if (_starOfTheDay != null && tracksMap.containsKey(_starOfTheDay!.id)) {
         _starOfTheDay = tracksMap[_starOfTheDay!.id];
       }
-      
-      // Actualizar los álbumes (que son en realidad pistas)
+        // Actualizar los álbumes (que son en realidad pistas)
       for (int i = 0; i < _topAlbums.length; i++) {
         final albumId = _topAlbums[i].id; // En realidad es un trackId
         if (tracksMap.containsKey(albumId)) {
@@ -505,11 +523,18 @@ class UnaffiliatedProfileService extends ChangeNotifier {
         }
       }
       
+      // Marcar como completamente cargado y notificar explícitamente
+      _dataFullyLoaded = true;
+      
+      debugPrint('[DEBUG] Enriquecimiento de datos completado. Actualizando UI...');
+      
       // Notificar a los oyentes sobre los cambios
       notifyListeners();
       
     } catch (e) {
       debugPrint('[ERROR] Error al enriquecer datos con Spotify: $e');
+    } finally {
+      _isEnrichingData = false;
     }
   }
   
@@ -558,94 +583,4 @@ class UnaffiliatedProfileService extends ChangeNotifier {
     }
   }
   
-  /// Método para obtener detalles de una pista de Spotify por su ID
-  /// Retorna un mapa con la información o null si ocurre algún error
-  Future<Map<String, dynamic>?> _getTrackDetailsFromSpotify(String trackId) async {
-    try {
-      // Verificar si tenemos los detalles en caché y no han expirado
-      final bool hasCachedData = _trackDetailsCache.containsKey(trackId);
-      final bool isCacheValid = hasCachedData && 
-          (_trackDetailsFetchTime[trackId]?.isAfter(DateTime.now().subtract(_trackCacheDuration)) ?? false);
-      
-      if (isCacheValid) {
-        debugPrint('[DEBUG] Usando datos en caché para track $trackId');
-        return _trackDetailsCache[trackId];
-      }
-      
-      // Obtener token de autenticación para Spotify
-      final token = await _spotifyAuthService.getAccessToken();
-      
-      if (token == null) {
-        debugPrint('[ERROR] No se pudo obtener el token de autenticación de Spotify');
-        return null;
-      }
-      
-      // Realizar petición directa al endpoint de tracks de Spotify
-      final response = await http.get(
-        Uri.parse('https://api.spotify.com/v1/tracks/$trackId'),
-        headers: {
-          'Authorization': 'Bearer $token',
-        },
-      );
-      
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        // Guardar en caché
-        _trackDetailsCache[trackId] = data;
-        _trackDetailsFetchTime[trackId] = DateTime.now();
-        
-        debugPrint('[DEBUG] Detalles de track obtenidos con éxito: ${data['name']}');
-        return data;
-      } else {
-        debugPrint('[ERROR] Error al obtener datos de track. Código: ${response.statusCode}');
-        debugPrint('[ERROR] Respuesta: ${response.body}');
-        return null;
-      }
-    } catch (e) {
-      debugPrint('[ERROR] Error al obtener detalles del track $trackId: $e');
-      return null;
-    }
-  }
-  
-  /// Convierte los datos de una pista de Spotify al modelo SpotifyTrack
-  SpotifyTrack _convertSpotifyDataToTrack(Map<String, dynamic> data) {
-    String? imageUrl;
-    if (data['album'] != null && 
-        data['album']['images'] != null && 
-        data['album']['images'].isNotEmpty) {
-      imageUrl = data['album']['images'][0]['url'];
-    }
-    
-    String artistName = 'Artista desconocido';
-    if (data['artists'] != null && data['artists'].isNotEmpty) {
-      artistName = data['artists'][0]['name'];
-    }
-    
-    return SpotifyTrack(
-      id: data['id'] ?? '',
-      name: data['name'] ?? 'Pista desconocida',
-      artistName: artistName,
-      albumName: data['album']?['name'] ?? '',
-      imageUrl: imageUrl,
-      spotifyUrl: data['external_urls']?['spotify'] ?? '',
-      albumId: data['album']?['id'],
-      previewUrl: data['preview_url'],
-    );
-  }
-  
-  /// Método para enriquecer una pista con datos de Spotify
-  /// Retorna una nueva instancia de SpotifyTrack con los datos completos
-  Future<SpotifyTrack> _enrichTrackWithSpotifyData(SpotifyTrack track) async {
-    if (track.id.isEmpty) {
-      return track;
-    }
-    
-    final spotifyData = await _getTrackDetailsFromSpotify(track.id);
-    
-    if (spotifyData == null) {
-      return track; // Retornar el track original si no pudimos obtener datos
-    }
-    
-    return _convertSpotifyDataToTrack(spotifyData);
-  }
 }

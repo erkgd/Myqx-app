@@ -9,7 +9,6 @@ import 'package:myqx_app/presentation/widgets/profile/user_compatibility.dart';
 import 'package:myqx_app/presentation/widgets/spotify/open_spotify_button.dart';
 import 'package:myqx_app/presentation/widgets/general/user_header.dart';
 import 'package:myqx_app/presentation/widgets/general/lazy_image.dart';
-import 'package:myqx_app/presentation/widgets/general/skeleton_loading.dart';
 
 class UnaffiliatedProfileScreen extends StatefulWidget {
   final String userId;
@@ -29,25 +28,19 @@ class _UnaffiliatedProfileScreenState extends State<UnaffiliatedProfileScreen> w
   bool _isFollowing = false;
   bool _isLoading = true;
   bool _isFollowActionLoading = false; // Estado específico para el botón de follow
-    // Track loading states for different profile sections
-  bool _userDataLoaded = false;
-  bool _compatibilityLoaded = false;
-  bool _starOfDayLoaded = false;
-  bool _topAlbumsLoaded = false;
-  
-  // Progressive loading timeouts for simulation (would be real API calls)
-  final Duration _compatibilityLoadTime = const Duration(milliseconds: 500);
-  final Duration _starLoadTime = const Duration(milliseconds: 1200);
-  final Duration _albumsLoadTime = const Duration(milliseconds: 2000);  
   late final UnaffiliatedProfileService _profileService;
   final PerformanceService _performanceService = PerformanceService();
   final SecureStorage _secureStorage = SecureStorage();
+  
   @override
   void initState() {
     super.initState();
     
     // Inicializar el servicio con las dependencias necesarias
     _profileService = UnaffiliatedProfileService();
+    
+    // Añadir listener para actualizaciones de datos de Spotify
+    _profileService.addListener(_handleProfileUpdates);
     
     // Registrar observer para ciclo de vida de la app
     WidgetsBinding.instance.addObserver(this);
@@ -56,8 +49,20 @@ class _UnaffiliatedProfileScreenState extends State<UnaffiliatedProfileScreen> w
     _loadProfileDataProgressive();
   }
   
+  /// Maneja las actualizaciones del servicio de perfil
+  void _handleProfileUpdates() {
+    if (mounted) {
+      // Forzar reconstrucción de la UI cuando hay cambios en los datos
+      setState(() {
+        debugPrint("[INFO] Actualizando UI debido a cambios en los datos de perfil");
+      });
+    }
+  }
+  
   @override
   void dispose() {
+    // Quitar el listener para evitar memory leaks
+    _profileService.removeListener(_handleProfileUpdates);
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -78,8 +83,7 @@ class _UnaffiliatedProfileScreenState extends State<UnaffiliatedProfileScreen> w
     // This would be determined by checking the timestamp of the last fetch
     return true; // Default to refreshing for now
   }
-  
-  /// Loads profile data progressively, prioritizing critical UI elements
+    /// Loads profile data progressively, prioritizing critical UI elements
   Future<void> _loadProfileDataProgressive() async {
     if (mounted) {  
       setState(() {
@@ -90,21 +94,25 @@ class _UnaffiliatedProfileScreenState extends State<UnaffiliatedProfileScreen> w
     try {
       debugPrint("[DEBUG] Profile: Starting progressive loading for ID: ${widget.userId}");
       
+      // Verificar primero si el usuario está autenticado para cargar el estado de seguimiento temprano
+      final isAuthenticated = await _secureStorage.isAuthenticated();
+      
       // Step 1: Load basic user data (highest priority)
       await _profileService.loadProfileById(widget.userId);
+      
+      // Step 2: Cargar el estado de seguimiento ANTES de marcar la carga como completa
+      if (isAuthenticated) {
+        await _loadFollowingStatus();
+        debugPrint("[DEBUG] Estado de seguimiento cargado: $_isFollowing");
+      } else {
+        debugPrint("[INFO] Usuario no autenticado. No se verifica estado de seguimiento");
+      }
       
       if (mounted) {
         setState(() {
           // We can show the UI now with the user data loaded
           _isLoading = false;
         });
-      }
-        // Step 2: Check following status in parallel with other data, solo si el usuario está autenticado
-      final isAuthenticated = await _secureStorage.isAuthenticated();
-      if (isAuthenticated) {
-        _loadFollowingStatus();
-      } else {
-        debugPrint("[INFO] Usuario no autenticado. No se verifica estado de seguimiento");
       }
       
       // Step 3: Schedule lower-priority data loading using the performance service
@@ -122,8 +130,7 @@ class _UnaffiliatedProfileScreenState extends State<UnaffiliatedProfileScreen> w
       }
     }
   }
-  
-  /// Loads profile data with optimized loading strategy
+    /// Loads profile data with optimized loading strategy
   Future<void> _loadProfileData() async {
     if (mounted) {  
       setState(() {
@@ -134,11 +141,17 @@ class _UnaffiliatedProfileScreenState extends State<UnaffiliatedProfileScreen> w
     try {
       debugPrint("[DEBUG] Profile: Optimized loading for ID: ${widget.userId}");
       
+      // Verificar autenticación primero
+      final isAuthenticated = await _secureStorage.isAuthenticated();
+      
       // Step 1: Load basic user data (highest priority)
       await _profileService.loadProfileById(widget.userId);
       
       // Step 2: Check following status
-      await _loadFollowingStatus();
+      if (isAuthenticated) {
+        await _loadFollowingStatus();
+        debugPrint("[DEBUG] Following status after reload: $_isFollowing");
+      }
       
       debugPrint("[DEBUG] Profile: Data loaded successfully");
     } catch (e) {
@@ -150,14 +163,9 @@ class _UnaffiliatedProfileScreenState extends State<UnaffiliatedProfileScreen> w
         });
       }
     }
-  }  Future<void> _loadFollowingStatus() async {
-    // Por defecto, asumimos que no se está siguiendo
-    if (mounted) {
-      setState(() {
-        _isFollowing = false;
-      });
-    }
-    
+  }  
+  
+  Future<void> _loadFollowingStatus() async {
     try {
       // Ya verificamos la autenticación antes de llamar a este método
       // Así que podemos asumir que el usuario está autenticado
@@ -171,13 +179,17 @@ class _UnaffiliatedProfileScreenState extends State<UnaffiliatedProfileScreen> w
       
       // Solo verificar estado de seguimiento si los IDs son diferentes
       try {
-        final isFollowing = await _profileService.isFollowing(widget.userId);
+        bool isFollowing = false;
+        isFollowing = await _profileService.isFollowing(widget.userId);
         if (mounted) {
           setState(() {
             _isFollowing = isFollowing;
           });
+          
+          // Depuración del estado del botón
+          debugPrint("[DEBUG] Estado de seguimiento actualizado: ${_isFollowing ? 'Following' : 'Not following'}");
+          debugPrint("[DEBUG] Botón debe mostrar: ${_isFollowing ? 'Unfollow' : 'Follow'}");
         }
-        debugPrint("[DEBUG] Following status: ${_isFollowing ? 'Following' : 'Not following'}");
       } catch (apiError) {
         // Capturar errores específicos de la API
         debugPrint("[WARNING] Error API al verificar estado de seguimiento: $apiError");
@@ -188,52 +200,7 @@ class _UnaffiliatedProfileScreenState extends State<UnaffiliatedProfileScreen> w
     }
   }
 
-  
-  Future<void> _loadCompatibilityData() async {
-    try {
-      // This would be a separate API call or calculation
-      // Here we're simulating with a delay
-      await Future.delayed(const Duration(milliseconds: 200));
-      
-      if (mounted) {
-        setState(() {
-          _compatibilityLoaded = true;
-        });
-      }
-    } catch (e) {
-      debugPrint("[ERROR] Failed to load compatibility data: $e");
-    }
-  }
-  
-  Future<void> _loadStarOfDayData() async {
-    try {
-      // Simulating a separate API call for star of the day
-      await Future.delayed(const Duration(milliseconds: 300));
-      
-      if (mounted) {
-        setState(() {
-          _starOfDayLoaded = true;
-        });
-      }
-    } catch (e) {
-      debugPrint("[ERROR] Failed to load star of the day: $e");
-    }
-  }
-  
-  Future<void> _loadTopAlbumsData() async {
-    try {
-      // Simulating a separate API call for top albums
-      await Future.delayed(const Duration(milliseconds: 400));
-      
-      if (mounted) {
-        setState(() {
-          _topAlbumsLoaded = true;
-        });
-      }
-    } catch (e) {
-      debugPrint("[ERROR] Failed to load top albums: $e");
-    }
-  }
+    // Se han eliminado los métodos de carga progresiva
   
   @override
   Widget build(BuildContext context) {
@@ -243,14 +210,63 @@ class _UnaffiliatedProfileScreenState extends State<UnaffiliatedProfileScreen> w
       body: _buildBody(),
     );
   }
-  
-  Widget _buildBody() {
+    Widget _buildBody() {
     // Si el servicio está cargando pero tenemos datos en caché, mostrar contenido con indicador
     final bool isServiceLoading = _profileService.isLoading;
     final bool hasProfileData = _profileService.profileUser != null;
-    
-    if (_isLoading && !hasProfileData) {
-      return _buildSkeletonLoading();
+      if (_isLoading && !hasProfileData) {
+      // Implementar el círculo de carga estilizado similar al profile_screen.dart
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            // Círculo exterior decorativo
+            Container(
+              width: 120,
+              height: 120,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: CorporativeColors.mainColor.withOpacity(0.5),
+                  width: 2,
+                ),
+              ),
+              // Círculo interior con gradiente y animación
+              child: Center(
+                child: Container(
+                  width: 100,
+                  height: 100,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: CorporativeColors.mainColor,
+                      width: 3,
+                    ),
+                  ),
+                  // Círculo de carga animado
+                  child: Padding(
+                    padding: const EdgeInsets.all(4.0),
+                    child: CircularProgressIndicator(
+                      valueColor: AlwaysStoppedAnimation<Color>(CorporativeColors.mainColor),
+                      strokeWidth: 3,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            // Texto de carga
+            const Text(
+              'Cargando perfil...',
+              style: TextStyle(
+                color: CorporativeColors.whiteColor,
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      );
     } else if (hasProfileData) {
       return Stack(
         children: [
@@ -285,47 +301,7 @@ class _UnaffiliatedProfileScreenState extends State<UnaffiliatedProfileScreen> w
       return _buildErrorState();
     }
   }
-  
-  Widget _buildSkeletonLoading() {
-    return ListView(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      children: [
-        // Skeleton para la información del usuario
-        Row(
-          children: [
-            const SkeletonLoading(width: 80, height: 80, shape: BoxShape.circle),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: const [
-                  SkeletonLoading(width: 150, height: 24),
-                  SizedBox(height: 8),
-                  SkeletonLoading(width: 100, height: 16),
-                ],
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 24),
-        
-        // Skeleton para el botón de seguimiento
-        const Center(child: SkeletonLoading(width: 120, height: 40)),
-        const SizedBox(height: 32),
-        
-        // Skeleton para la compatibilidad
-        const SkeletonLoading(width: double.infinity, height: 80),
-        const SizedBox(height: 24),
-        
-        // Skeleton para la canción destacada
-        const SkeletonLoading(width: double.infinity, height: 140),
-        const SizedBox(height: 24),
-        
-        // Skeleton para los álbumes
-        const SkeletonLoading(width: double.infinity, height: 200),
-      ],
-    );
-  }
+    // El método _buildSkeletonLoading ha sido eliminado
     Widget _buildErrorState() {
     return Center(
       child: Column(
@@ -395,24 +371,23 @@ class _UnaffiliatedProfileScreenState extends State<UnaffiliatedProfileScreen> w
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            const SizedBox(height: 5),
-              // Profile circle with optimized image loading
+            const SizedBox(height: 5),            // Profile circle with optimized image loading (tamaño reducido)
             Container(
-              width: 160,
-              height: 160,
+              width: 120, // Reducido de 160 a 120
+              height: 120, // Reducido de 160 a 120
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 border: Border.all(
                   color: CorporativeColors.mainColor,
-                  width: 3,
+                  width: 2, // Reducido de 3 a 2
                 ),
               ),
               child: ClipOval(
                 child: imageUrl != null && imageUrl.isNotEmpty
                     ? LazyImage(
                         imageUrl: imageUrl,
-                        width: 100,
-                        height: 100,
+                        width: 120,
+                        height: 120,
                         fit: BoxFit.cover,
                         placeholder: const Center(
                           child: CircularProgressIndicator(
@@ -423,7 +398,7 @@ class _UnaffiliatedProfileScreenState extends State<UnaffiliatedProfileScreen> w
                         errorWidget: const Center(
                           child: Icon(
                             Icons.person,
-                            size: 90,
+                            size: 60, // Reducido de 90 a 60
                             color: Colors.white70,
                           ),
                         ),
@@ -431,7 +406,7 @@ class _UnaffiliatedProfileScreenState extends State<UnaffiliatedProfileScreen> w
                     : const Center(
                         child: Icon(
                           Icons.person,
-                          size: 90,
+                          size: 60, // Reducido de 90 a 60
                           color: Colors.white70,
                         ),
                       ),
@@ -727,129 +702,5 @@ class _UnaffiliatedProfileScreenState extends State<UnaffiliatedProfileScreen> w
       ),
     );
   }
-  
-  // Loading section placeholders
-  Widget _buildCompatibilityLoadingSection() {
-    return Container(
-      height: 60,
-      margin: const EdgeInsets.symmetric(horizontal: 10.0),
-      decoration: BoxDecoration(
-        color: Colors.grey[900],
-        borderRadius: BorderRadius.circular(10.0),
-      ),
-      child: const Center(
-        child: SizedBox(
-          width: 24,
-          height: 24,
-          child: CircularProgressIndicator(
-            strokeWidth: 2.0,
-            valueColor: AlwaysStoppedAnimation<Color>(CorporativeColors.mainColor),
-          ),
-        ),
-      ),
-    );
-  }
-  
-  Widget _buildSongLoadingSection() {
-    return Container(
-      height: 140,
-      margin: const EdgeInsets.symmetric(horizontal: 10.0),
-      decoration: BoxDecoration(
-        color: Colors.grey[900],
-        borderRadius: BorderRadius.circular(10.0),
-      ),
-      child: Row(
-        children: [
-          // Album art placeholder
-          Container(
-            width: 100,
-            height: 100,
-            margin: const EdgeInsets.all(16.0),
-            decoration: BoxDecoration(
-              color: Colors.grey[800],
-              borderRadius: BorderRadius.circular(8.0),
-            ),
-          ),
-          
-          // Text placeholders
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Container(
-                  width: double.infinity,
-                  height: 18.0,
-                  margin: const EdgeInsets.only(bottom: 8.0, right: 50.0),
-                  decoration: BoxDecoration(
-                    color: Colors.grey[800],
-                    borderRadius: BorderRadius.circular(4.0),
-                  ),
-                ),
-                Container(
-                  width: 120.0,
-                  height: 16.0,
-                  decoration: BoxDecoration(
-                    color: Colors.grey[800],
-                    borderRadius: BorderRadius.circular(4.0),
-                  ),
-                ),
-                const SizedBox(height: 16.0),
-                const CircularProgressIndicator(
-                  strokeWidth: 2.0,
-                  valueColor: AlwaysStoppedAnimation<Color>(CorporativeColors.mainColor),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 16.0),
-        ],
-      ),
-    );
-  }
-  
-  Widget _buildAlbumsLoadingSection() {
-    return Container(
-      height: 200,
-      margin: const EdgeInsets.symmetric(horizontal: 10.0),
-      decoration: BoxDecoration(
-        color: Colors.grey[900],
-        borderRadius: BorderRadius.circular(10.0),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Section title placeholder
-          Container(
-            width: 160,
-            height: 20.0,
-            margin: const EdgeInsets.only(top: 16.0, left: 16.0, bottom: 16.0),
-            decoration: BoxDecoration(
-              color: Colors.grey[800],
-              borderRadius: BorderRadius.circular(4.0),
-            ),
-          ),
-          
-          // Album covers placeholders
-          Expanded(
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              itemCount: 5,
-              itemBuilder: (context, index) {
-                return Container(
-                  width: 100,
-                  height: 100,
-                  margin: const EdgeInsets.only(left: 16.0, bottom: 16.0),
-                  decoration: BoxDecoration(
-                    color: Colors.grey[800],
-                    borderRadius: BorderRadius.circular(8.0),
-                  ),
-                );
-              },
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+    // Se han eliminado los métodos de placeholder para la carga
 }
