@@ -1,0 +1,44 @@
+@startuml Data_Layer
+
+' Style definitions
+skinparam packageStyle rectangle
+skinparam backgroundColor white
+skinparam componentStyle uml2
+skinparam linetype ortho
+
+title Myqx-app - Capa de Dades
+
+package "Capa de Dades" {
+    package "Repositoris" {
+        component [RepositoriUsuaris] as UR
+        component [RepositoriMúsica] as MR
+        component [RepositoriPublicacions] as PR
+    }
+    
+    package "Fonts de Dades" {
+        component [ServeiApi] as API
+        component [EmmagatzematgeLocal] as LS
+    }
+}
+
+package "Sistemes Externs" {
+    cloud "API Spotify" as SAPI
+    database "Servidor Backend" as BS
+    database "Emmagatzematge Local Dispositiu" as LDS
+}
+
+' Define relationships
+UR --> API
+UR --> LS
+MR --> API
+PR --> API
+
+API --> SAPI
+API --> BS
+LS --> LDS
+
+note bottom of API: "Connecta amb API de Spotify\ni serveis de backend"
+note right of LS: "Gestiona dades\nlocals persistents"
+note left of UR: "Abstreu l'accés\na les dades"
+
+@enduml

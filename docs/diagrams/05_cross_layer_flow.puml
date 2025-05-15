@@ -1,0 +1,47 @@
+@startuml Cross_Layer_Flow
+
+' Style definitions
+skinparam packageStyle rectangle
+skinparam backgroundColor white
+skinparam componentStyle uml2
+skinparam linetype ortho
+
+title Myqx-app - Flux Entre Capes
+
+' Simplified components to show cross-layer interactions
+package "Presentació" {
+    component [PantallaPerfilNoAfiliat] as UPS
+    component [TopCincAlbums] as TFA
+}
+
+package "Nucli" {
+    component [ServeiPerfilNoAfiliat] as UPSvc
+    component [ServeiBroadcast] as BSvc
+}
+
+package "Dades" {
+    component [RepositoriUsuaris] as UR
+    component [RepositoriMúsica] as MR
+    component [ServeiApi] as API
+}
+
+cloud "APIs Externes" as EXT
+
+' Define cross-layer flow
+UPS --> UPSvc : 1. Sol·licita dades
+UPSvc --> BSvc : 2. Coordina sol·licitud
+BSvc --> UR : 3. Obté dades d'usuari
+BSvc --> MR : 4. Obté dades musicals
+UR --> API : 5. Realitza peticions API
+MR --> API : 6. Realitza peticions API
+API --> EXT : 7. Connecta amb serveis externs
+API ..> BSvc : 8. Retorna dades
+BSvc ..> UPSvc : 9. Processa dades
+UPSvc ..> UPS : 10. Actualitza UI
+UPS ..> TFA : 11. Actualitza widgets
+
+note right of UPS : "Interfície d'usuari"
+note right of UPSvc : "Lògica de negoci"
+note right of API : "Accés a dades"
+
+@enduml

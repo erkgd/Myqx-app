@@ -1,0 +1,129 @@
+@startuml Myqx-app Architecture
+
+' Style definitions
+skinparam packageStyle rectangle
+skinparam backgroundColor white
+skinparam componentStyle uml2
+skinparam linetype ortho
+
+' Define layers to organize components
+package "Capa de Presentació" {
+    package "Pantalles" {
+        component [PantallaInicial] as HS
+        component [PantallaPerfil] as PS
+        component [PantallaPerfilNoAfiliat] as UPS
+        component [PantallaLogin] as LS
+        component [PantallaCerca] as SS
+        component [PantallaPublicació] as POS
+        component [PantallaNotificacions] as NS
+    }
+
+    package "Widgets" {
+        package "Widgets de Perfil" {
+            component [TopCincAlbums] as TFA
+            component [EstrelladelDia] as SOTD
+            component [CompatibilitatUsuari] as UC
+        }
+        
+        package "Widgets Generals" {
+            component [CapçaleraUsuari] as UH
+            component [Divisor] as DIV
+            component [ContenidorMusical] as MC
+            component [TargetaPublicació] as PC
+            component [TargetaAlbum] as AC
+            component [TargetaArtista] as ARC
+        }
+        
+        package "Navegació" {
+            component [BarraNavegacióApp] as ANB
+        }
+    }
+}
+
+package "Capa de Nucli" {
+    package "Serveis" {
+        component [ServeiPerfilNoAfiliat] as UPSvc
+        component [ServeiPerfil] as PSvc
+        component [ServeiAutenticació] as ASvc
+        component [ServeiBroadcast] as BSvc
+        component [ServeiPublicacions] as PST
+        component [ServeiCerca] as SSvc
+    }
+
+    package "Models" {
+        component [Usuari] as UM
+        component [Album] as AM
+        component [Artista] as ARM
+        component [Publicació] as PM
+        component [Música] as MM
+    }
+
+    package "Utils i Constants" {
+        component [ConstantsApp] as AC
+        component [ConfigTema] as TC
+        component [Rutes] as R
+    }
+}
+
+package "Capa de Dades" {
+    package "Repositoris" {
+        component [RepositoriUsuaris] as UR
+        component [RepositoriMúsica] as MR
+        component [RepositoriPublicacions] as PR
+    }
+    
+    package "Fonts de Dades" {
+        component [ServeiApi] as API
+        component [EmmagatzematgeLocal] as LS
+    }
+}
+
+' Define relationships between components
+HS --> ANB
+PS --> ANB
+UPS --> ANB
+SS --> ANB
+NS --> ANB
+
+UPS --> UPSvc
+UPS --> UH
+UPS --> TFA
+UPS --> SOTD
+UPS --> UC
+UPS --> DIV
+
+TFA --> MC
+TFA --> AC
+SOTD --> MC
+UC --> MC
+
+UH --> DIV
+
+UPSvc --> UM
+UPSvc --> AM
+UPSvc --> ARM
+UPSvc --> BSvc
+
+PSvc --> UM
+PSvc --> AM
+PSvc --> BSvc
+
+BSvc --> API
+BSvc --> LS
+
+UR --> API
+UR --> LS
+MR --> API
+PR --> API
+
+' User model relationships
+UM --> AM : té àlbums preferits
+UM --> ARM : té artistes preferits
+UM --> PM : crea publicacions
+
+' Styling specifics
+note right of BSvc: "Servei principal de comunicació\nentre UI i fonts de dades"
+note bottom of UPS: "Pantalla de perfil per veure\nusuaris no connectats"
+note bottom of API: "Connecta amb API de Spotify\ni serveis de backend"
+
+@enduml

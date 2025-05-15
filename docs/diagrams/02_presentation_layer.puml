@@ -1,0 +1,68 @@
+@startuml Presentation_Layer
+
+' Style definitions
+skinparam packageStyle rectangle
+skinparam backgroundColor white
+skinparam componentStyle uml2
+skinparam linetype ortho
+
+title Myqx-app - Capa de Presentació
+
+package "Capa de Presentació" {
+    package "Pantalles" {
+        component [PantallaInicial] as HS
+        component [PantallaPerfil] as PS
+        component [PantallaPerfilNoAfiliat] as UPS
+        component [PantallaLogin] as LS
+        component [PantallaCerca] as SS
+        component [PantallaPublicació] as POS
+        component [PantallaNotificacions] as NS
+    }
+
+    package "Widgets" {
+        package "Widgets de Perfil" {
+            component [TopCincAlbums] as TFA
+            component [EstrelladelDia] as SOTD
+            component [CompatibilitatUsuari] as UC
+        }
+        
+        package "Widgets Generals" {
+            component [CapçaleraUsuari] as UH
+            component [Divisor] as DIV
+            component [ContenidorMusical] as MC
+            component [TargetaPublicació] as PC
+            component [TargetaAlbum] as AC
+            component [TargetaArtista] as ARC
+        }
+        
+        package "Navegació" {
+            component [BarraNavegacióApp] as ANB
+        }
+    }
+}
+
+' Define relationships between presentation components
+HS --> ANB
+PS --> ANB
+UPS --> ANB
+SS --> ANB
+NS --> ANB
+
+UPS --> UH
+UPS --> TFA
+UPS --> SOTD
+UPS --> UC
+UPS --> DIV
+
+TFA --> MC
+TFA --> AC
+SOTD --> MC
+UC --> MC
+
+UH --> DIV
+
+note bottom of UPS: "Pantalla de perfil per\nveure usuaris no connectats"
+note right of ANB: "Barra de navegació\nprincipal de l'app"
+note left of TFA: "Widgets especialitzats\nper mostrar preferències\nmusicals"
+
+@enduml

@@ -1,0 +1,99 @@
+@startuml Functional_Components
+
+' Style definitions
+skinparam packageStyle rectangle
+skinparam backgroundColor white
+skinparam componentStyle uml2
+skinparam linetype ortho
+skinparam ArrowColor #446688
+skinparam ComponentBackgroundColor #FFFECC
+skinparam PackageBackgroundColor #EEEEFF
+skinparam NoteBackgroundColor #EEFFEE
+skinparam NoteBorderColor #005500
+
+title Myqx-app - Components Funcionals d'Alt Nivell
+
+' Define main functional components
+package "Funcionalitats Principals" {
+    component [Gestió de Perfil\nd'Usuari] as UserProfile
+    component [Descobriment\nMusical] as MusicDiscovery
+    component [Compatibilitat\nentre Usuaris] as UserCompatibility
+    component [Xarxa\nSocial] as SocialNetwork
+    component [Integració amb\nServeis Musicals] as MusicServices
+}
+
+' Define supporting components
+package "Components de Suport" {
+    component [Autenticació i\nSeguretat] as Auth
+    component [Emmagatzematge\nLocal] as LocalStorage
+    component [Analítiques\nd'Ús] as Analytics
+    component [Notificacions] as Notifications
+}
+
+' Define interfaces
+interface "API de Tercers" as ExternalAPI
+interface "Interacció d'Usuari" as UserInteraction
+
+' Define actors
+actor "Usuari" as User
+actor "Artistes/\nCreadors" as Artists
+
+' Define relationships
+User --> UserInteraction
+UserInteraction --> UserProfile
+UserInteraction --> SocialNetwork
+UserInteraction --> MusicDiscovery
+
+UserProfile --> UserCompatibility
+MusicDiscovery --> UserCompatibility
+MusicDiscovery --> MusicServices
+SocialNetwork --> UserProfile
+SocialNetwork --> Notifications
+
+UserProfile ..> Auth: usa
+MusicServices ..> ExternalAPI: consumeix
+ExternalAPI <.. Artists: proporcionen contingut
+
+Auth --> LocalStorage
+MusicDiscovery --> LocalStorage: emmagatzema preferències
+Analytics <-- UserProfile: registra accions
+Analytics <-- MusicDiscovery: registra interaccions
+Analytics <-- SocialNetwork: registra activitat
+
+' Notes with descriptions
+note right of UserProfile
+  Permet als usuaris crear i editar el seu
+  perfil musical, incloent-hi preferències,
+  top àlbums i historial d'escolta
+end note
+
+note right of MusicDiscovery
+  Ofereix sistemes de recomanació musical
+  basats en preferències, historial i
+  compatibilitat amb altres usuaris
+end note
+
+note right of UserCompatibility
+  Calcula i mostra el nivell de compatibilitat
+  entre usuaris basant-se en gustos musicals
+  i patrons d'escolta similars
+end note
+
+note left of SocialNetwork
+  Permet publicacions, comentaris i
+  interaccions relacionades amb música,
+  construint una comunitat musical
+end note
+
+note left of MusicServices
+  Integració amb serveis com Spotify,
+  permetent escoltar música i sincronitzar
+  preferències automàticament
+end note
+
+note bottom of Auth
+  Gestiona l'accés segur i la protecció
+  de dades personals dels usuaris
+end note
+
+@enduml

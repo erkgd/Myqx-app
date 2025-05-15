@@ -1,0 +1,48 @@
+@startuml Profile_Components
+
+' Style definitions
+skinparam packageStyle rectangle
+skinparam backgroundColor white
+skinparam componentStyle uml2
+skinparam linetype ortho
+
+title Myqx-app - Components de Perfil
+
+package "Perfil d'Usuari" {
+    component [PantallaPerfilNoAfiliat] as UPS
+    component [CapçaleraUsuari] as UH
+    component [TopCincAlbums] as TFA
+    component [EstrelladelDia] as SOTD
+    component [CompatibilitatUsuari] as UC
+    component [Divisor] as DIV
+    component [ContenidorMusical] as MC
+    component [TargetaAlbum] as AC
+}
+
+package "Dades d'Usuari" {
+    component [ServeiPerfilNoAfiliat] as UPSvc
+    component [Usuari] as UM
+    component [Album] as AM
+}
+
+' Define relationships between profile components
+UPS --> UH : mostra capçalera
+UPS --> TFA : mostra àlbums preferits
+UPS --> SOTD : mostra destacat musical
+UPS --> UC : mostra compatibilitat
+UPS --> DIV : separa visualment
+
+TFA --> MC : conté
+TFA --> AC : mostra àlbums
+SOTD --> MC : conté
+UC --> MC : conté
+
+UPS --> UPSvc : obté dades
+UPSvc --> UM : gestiona
+UPSvc --> AM : gestiona
+
+note bottom of UPS: "Pantalla principal\nde perfil no afiliat"
+note right of MC: "Contenidor visual\nper elements musicals"
+note left of UPSvc: "Gestiona totes les dades\ndel perfil no afiliat"
+
+@enduml

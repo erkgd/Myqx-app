@@ -1,0 +1,107 @@
+@startuml Core_Layer
+
+' Use minimalist style focused on clarity
+skinparam backgroundColor white
+skinparam componentStyle rectangle
+skinparam linetype ortho
+skinparam ArrowColor #777777
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam defaultFontSize 11
+skinparam componentBackgroundColor white
+skinparam componentBorderColor #888888
+skinparam noteBackgroundColor #FFFFDD
+skinparam noteBorderColor #CCBB00
+skinparam packageBackgroundColor #F8F8FF
+skinparam packageBorderColor #CCCCEE
+skinparam padding 8
+skinparam nodesep 25
+skinparam ranksep 25
+
+' Better layout for compact diagram
+left to right direction
+
+title <b>Myqx-app - Arquitectura de Serveis</b>\n<size:10>Estructura de serveis basada en el codi real</size>
+
+' Core Layer - Simplified
+rectangle "Core Layer" as CoreLayer #F0FFF0 {
+    rectangle "HTTP & Exceptions" as Http #E8E8FF {
+        rectangle "Client HTTP" as HttpClient
+    }
+      rectangle "Serveis Principals" as MainServices #E0FFE0 {
+        rectangle "Broadcast" as BroadcastService
+        rectangle "Autenticació" as AuthService
+        rectangle "Perfil" as ProfileService
+        rectangle "Perfil No Afiliat" as UnaffiliatedProfileService
+        rectangle "Cerca" as SearchService
+        rectangle "Reproductor Àudio" as AudioPlayerService
+        rectangle "Graf Usuaris" as UserGraphService
+        rectangle "Valoracions" as RatingService
+    }
+    
+    rectangle "Serveis Spotify" as SpotifyServices #E0FFE0 {
+        rectangle "Auth Spotify" as SpotifyAuthService
+        rectangle "Perfil Spotify" as SpotifyProfileService
+        rectangle "Cerca Spotify" as SpotifySearchService
+        rectangle "Albums Spotify" as SpotifyAlbumService
+        rectangle "Tracks Spotify" as SpotifyTrackService
+    }
+    
+    rectangle "Storage" as Storage #FFE8E8 {
+        rectangle "Secure Storage" as SecureStorage
+    }
+}
+
+' Domain Layer - Simplified
+rectangle "Domain Layer" as DomainLayer #F8F8FF {
+    rectangle "Models" as Models #FFFFEE {
+        rectangle "User" as UserModel
+        rectangle "Album" as AlbumModel
+        rectangle "Artist" as ArtistModel
+    }
+    
+    rectangle "Repository" as SpotifyRepo #E6E6FA
+    
+    rectangle "UseCase" as SpotifyUC #E6F2FF
+}
+
+' Key relationships (minimized)
+' Service interconnections
+BroadcastService --> UserGraphService : coordinació
+ProfileService --> SpotifyProfileService : utilitza
+UnaffiliatedProfileService --> ProfileService : extensió
+SearchService --> SpotifySearchService : utilitza
+AudioPlayerService --> SpotifyTrackService : reprodueix
+AuthService --> SpotifyAuthService : delega
+
+' Domain interactions
+SpotifyRepo --> UserModel : gestiona
+SpotifyRepo --> AlbumModel : gestiona
+SpotifyUC --> SpotifyRepo : utilitza
+
+' Cross-layer connections
+HttpClient ..> SpotifyServices : connexió API
+SecureStorage ..> AuthService : tokens
+BroadcastService ..> SpotifyUC : invoca
+
+' Service notes
+note right of BroadcastService
+  <b>Servei central</b>
+  Coordina la comunicació 
+  entre components
+end note
+
+note right of SpotifyServices
+  <b>Integració amb l'API externa</b>
+  Accés a funcionalitats de Spotify
+end note
+
+' Legend simplified
+legend right
+  <b>Llegenda</b>
+  |= <#F0FFF0> Core | Infraestructura i serveis |
+  |= <#F8F8FF> Domain | Models i lògica de negoci |
+  |= <#E6F2FF> UseCases | Funcionalitats principals |
+endlegend
+
+@enduml

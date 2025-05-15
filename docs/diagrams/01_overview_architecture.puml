@@ -1,0 +1,42 @@
+@startuml Overview_Architecture
+
+' Style definitions
+skinparam packageStyle rectangle
+skinparam backgroundColor white
+skinparam componentStyle uml2
+skinparam linetype ortho
+
+title Myqx-app - Arquitectura General
+
+' Define main layers
+package "Capa de Presentació" {
+    component [Pantalles] as SC
+    component [Widgets] as WG
+    component [Navegació] as NV
+}
+
+package "Capa de Nucli" {
+    component [Serveis] as SV
+    component [Models] as MD
+    component [Utils i Constants] as UC
+}
+
+package "Capa de Dades" {
+    component [Repositoris] as RP
+    component [Fonts de Dades] as DS
+}
+
+' Define high level relationships
+SC --> WG
+SC --> NV
+WG --> SV
+SC --> SV
+SV --> MD
+SV --> RP
+RP --> DS
+
+note bottom of DS: "Connexió amb APIs externes\ni emmagatzematge local"
+note right of SC: "Interfícies d'usuari\namb les que interactua\nl'usuari"
+note right of SV: "Lògica de negoci\nde l'aplicació"
+
+@enduml
