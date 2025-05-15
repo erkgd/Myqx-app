@@ -4,7 +4,7 @@ import 'package:flutter/foundation.dart';
 class SecureStorage {
   final FlutterSecureStorage _storage;
 
-  // Claves para el almacenamiento
+  // Claus d'emmagatzemament
   static const String _tokenKey = 'auth_token';
   static const String _refreshTokenKey = 'refresh_token';
   static const String _userIdKey = 'user_id';

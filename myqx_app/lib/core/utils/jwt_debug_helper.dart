@@ -1,17 +1,17 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 
-/// Clase de utilidad para depurar problemas relacionados con JWT
+
 class JwtDebugHelper {
   
-  /// Analiza y muestra información detallada sobre un token JWT
+
   static void analyzeJwt(String? token, {String prefix = ''}) {
     if (token == null || token.isEmpty) {
       debugPrint('$prefix[JWT DEBUG] Token nulo o vacío');
       return;
     }
 
-    // Muestra parte del token con seguridad (no el token completo)
+
     if (token.length > 15) {
       debugPrint('$prefix[JWT DEBUG] Token: ${token.substring(0, 7)}...${token.substring(token.length - 7)}');
     } else {

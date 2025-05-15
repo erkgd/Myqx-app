@@ -2,11 +2,9 @@ import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:myqx_app/core/constants/corporative_colors.dart';
 import 'package:myqx_app/core/services/search_service.dart';
-import 'package:myqx_app/core/services/audio_player_service.dart';
 import 'package:myqx_app/core/utils/rating_cache.dart';
 import 'package:myqx_app/presentation/widgets/general/music_container.dart';
 import 'package:myqx_app/presentation/widgets/broadcast/ratedmusicwidgets/rating.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 class AlbumTrackCard extends StatefulWidget {
   final int trackNumber;
@@ -16,10 +14,8 @@ class AlbumTrackCard extends StatefulWidget {
   final String songId;
   final double rating;
   final Function(double)? onRatingChanged;
-  final VoidCallback? onPlayPressed;
   final bool loadRating;
   final String? artistName;
-  final String? previewUrl; // URL para reproducir vista previa
   
   const AlbumTrackCard({
     Key? key,
@@ -30,10 +26,8 @@ class AlbumTrackCard extends StatefulWidget {
     required this.songId,
     this.rating = 0.0,
     this.onRatingChanged,
-    this.onPlayPressed,
     this.loadRating = true,
     this.artistName,
-    this.previewUrl, // URL de previsualización de audio
   }) : super(key: key);
 
   @override
@@ -43,25 +37,16 @@ class AlbumTrackCard extends StatefulWidget {
 class _AlbumTrackCardState extends State<AlbumTrackCard> {
   double _currentRating = 0;
   bool _expanded = false;
+  bool _showRating = false; // Variable para controlar la visibilidad del sistema de rating
   Timer? _debounceTimer;
   late SearchService _ratingService;
-  late AudioPlayerService _audioService;
-  
+
   @override
   void initState() {
     super.initState();
     _currentRating = widget.rating;
     _ratingService = SearchService();
-    _audioService = AudioPlayerService();
     _loadCachedOrServerRating();
-    
-    // Nos suscribimos a los cambios en el estado del reproductor de audio
-    _audioService.addListener(_audioStateChanged);
-  }
-  
-  void _audioStateChanged() {
-    // Forzar redibujado para actualizar el icono de reproducción
-    if (mounted) setState(() {});
   }
   
   void _loadCachedOrServerRating() {
@@ -97,7 +82,6 @@ class _AlbumTrackCardState extends State<AlbumTrackCard> {
   @override
   void dispose() {
     _debounceTimer?.cancel();
-    _audioService.removeListener(_audioStateChanged);
     super.dispose();
   }
 
@@ -168,40 +152,19 @@ class _AlbumTrackCardState extends State<AlbumTrackCard> {
       elevation: 2.0,
       borderRadius: BorderRadius.circular(12.0),
       child: Padding(
-        padding: const EdgeInsets.only(top: 3.0), // Pequeño padding superior adicional
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.end, // Alineación a la derecha para todo el contenedor
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Fila principal con información de la canción
-            _buildTrackInfoRow(isSmallScreen),
-            
-            // Línea divisoria blanca
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12.0),
-              child: Divider(
-                color: Colors.white.withOpacity(0.3),
-                height: 1,
-                thickness: 0.5,
-              ),
-            ),
-            
-            // Fila del sistema de calificación
-            _buildRatingRow(animationDuration, animationCurve, isSmallScreen),
-          ],
-        ),
+        padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
+        child: _buildSingleLineContent(isSmallScreen, animationDuration, animationCurve),
       ),
     );
   }
-  
-  // Construye la fila con la información principal de la canción
-  Widget _buildTrackInfoRow(bool isSmallScreen) {
+    // Construye el contenido completo en una sola línea
+  Widget _buildSingleLineContent(bool isSmallScreen, Duration animationDuration, Curve animationCurve) {
     return SizedBox(
-      height: 64, // Aumentado de 60 a 64 para dar más margen superior
-      width: double.infinity, // Asegura que ocupe todo el ancho
+      height: 48, // Altura reducida para una sola línea
+      width: double.infinity,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
-        mainAxisAlignment: MainAxisAlignment.start, // Mantiene la información alineada a la izquierda
+        mainAxisAlignment: MainAxisAlignment.start,
         children: [
           // Número de pista
           _buildTrackNumber(),
@@ -214,8 +177,15 @@ class _AlbumTrackCardState extends State<AlbumTrackCard> {
           // Información de la pista (título y artista)
           _buildTrackDetails(isSmallScreen),
           
-          // Botón de reproducción
-          _buildPlayButton(),
+          // Botón para mostrar/ocultar el sistema de rating
+          _buildRatingToggleButton(animationDuration, animationCurve),
+          
+          // Sistema de rating con botón de confirmación (visible solo si _showRating es true)
+          if (_showRating)
+            Padding(
+              padding: const EdgeInsets.only(right: 8.0),
+              child: _buildRatingSystem(animationDuration, animationCurve),
+            ),
         ],
       ),
     );
@@ -264,19 +234,22 @@ class _AlbumTrackCardState extends State<AlbumTrackCard> {
       ),
     );
   }
-  
   // Construye los detalles de la pista (título y artista)
   Widget _buildTrackDetails(bool isSmallScreen) {
+    // Obtener el nombre del artista
+    final artistName = _getArtistName();
+    final bool showArtist = artistName != "Unknown Artist";
+    
     return Expanded(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          // Nombre de la pista
+          // Nombre de la pista (con más espacio cuando el rating está oculto)
           Text(
             widget.trackName,
             style: TextStyle(
-              fontSize: isSmallScreen ? 14 : 16,
+              fontSize: isSmallScreen ? 10 : 12,
               fontWeight: FontWeight.w600,
               color: Colors.white,
             ),
@@ -284,17 +257,19 @@ class _AlbumTrackCardState extends State<AlbumTrackCard> {
             overflow: TextOverflow.ellipsis,
           ),
           
-          // Nombre del artista
-          Text(
-            _getArtistName(),
-            style: TextStyle(
-              fontSize: isSmallScreen ? 12 : 13,
-              fontWeight: FontWeight.normal,
-              color: Colors.grey[400],
+          // Nombre del artista (solo si no es "Unknown Artist")
+          if (showArtist)
+            Text(
+              artistName,
+              style: TextStyle(
+                fontSize: isSmallScreen ? 12 : 13,
+                fontWeight: FontWeight.normal,
+                color: Colors.grey[400],
+              ),
+              maxLines: 1,
+              // Más espacio para el texto cuando el rating está oculto
+              overflow: TextOverflow.ellipsis,
             ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
         ],
       ),
     );
@@ -310,156 +285,129 @@ class _AlbumTrackCardState extends State<AlbumTrackCard> {
       return "Unknown Artist";
     }
   }
-  
-  // Construye el botón de reproducción
-  Widget _buildPlayButton() {
-    final bool isCurrentlyPlaying = _audioService.currentlyPlayingId == widget.songId && _audioService.isPlaying;
-    
-    return Container(
-      margin: const EdgeInsets.only(right: 12, left: 4),
-      decoration: BoxDecoration(
-        color: CorporativeColors.mainColor.withOpacity(isCurrentlyPlaying ? 0.3 : 0.15),
-        borderRadius: BorderRadius.circular(25),
-      ),
+    // Construye el sistema de calificación con estrellas y botón de confirmación con animación mejorada
+  Widget _buildRatingSystem(Duration animationDuration, Curve animationCurve) {
+    return AnimatedOpacity(
+      opacity: _showRating ? 1.0 : 0.0,
+      duration: const Duration(milliseconds: 200),
+      curve: Curves.easeInOut,
       child: Stack(
-        alignment: Alignment.center,
+        alignment: Alignment.centerRight,
+        clipBehavior: Clip.none,
         children: [
-          IconButton(
-            padding: const EdgeInsets.all(8),
-            constraints: const BoxConstraints(),
-            icon: Icon(
-              isCurrentlyPlaying ? Icons.pause_circle_filled : Icons.play_circle_filled,
-              color: CorporativeColors.mainColor,
-              size: 28,
+          // Estrellas de calificación con animación
+          AnimatedContainer(
+            duration: animationDuration,
+            curve: animationCurve,
+            transform: Matrix4.translationValues(
+              _expanded ? -24.0 : 0.0, 0, 0,
             ),
-            onPressed: widget.onPlayPressed ?? () async {
-              if (widget.previewUrl != null && widget.previewUrl!.isNotEmpty) {
-                // Reproducir la previsualización si está disponible
-                _audioService.playPreview(widget.previewUrl, widget.songId);
-                debugPrint('Reproduciendo previsualización: ${widget.trackName}');
-              } else if (widget.spotifyUrl.isNotEmpty) {
-                // Si no hay vista previa, abrir la URL de Spotify
-                debugPrint('No hay previsualización disponible. Abrir URL: ${widget.spotifyUrl}');
-                
-                // Convertir la cadena a Uri
-                final Uri spotifyUri = Uri.parse(widget.spotifyUrl);
-                
-                // Intentar abrir la URL
-                try {
-                  if (await canLaunchUrl(spotifyUri)) {
-                    await launchUrl(
-                      spotifyUri, 
-                      mode: LaunchMode.externalApplication,  // Abrir en la app de Spotify o en el navegador
-                    );
-                  } else {
-                    debugPrint('No se puede abrir la URL: ${widget.spotifyUrl}');
-                  }
-                } catch (e) {
-                  debugPrint('Error al abrir la URL: $e');
-                }
-              }
-            },
+            child: Rating(
+              rating: _currentRating,
+              itemSize: 16, // Tamaño reducido para una sola línea
+              rateable: true,
+              onRatingUpdate: _handleRatingUpdate,
+            ),
           ),
           
-          // Indicador visual de si hay previsualización disponible
-          if (widget.previewUrl == null || widget.previewUrl!.isEmpty)
-            Positioned(
-              right: 7,
-              bottom: 7,
-              child: Container(
-                width: 8,
-                height: 8,
-                decoration: BoxDecoration(
-                  color: Colors.amber,
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Colors.black, width: 0.5),
+          // Botón de confirmación con animación mejorada
+          Positioned(
+            right: 0,
+            top: 0,
+            bottom: 0,
+            child: AnimatedContainer(
+              duration: animationDuration,
+              curve: animationCurve,
+              width: _expanded ? 28.0 : 0.0,
+              decoration: BoxDecoration(
+                color: CorporativeColors.mainColor.withOpacity(0.25),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: Colors.white,
+                  width: 1.0,
+                ),
+                boxShadow: _expanded ? [
+                  BoxShadow(
+                    color: Colors.white.withOpacity(0.3),
+                    blurRadius: 3,
+                    spreadRadius: 1,
+                  )
+                ] : null,
+              ),
+              child: AnimatedOpacity(
+                duration: const Duration(milliseconds: 150),
+                opacity: _expanded ? 1.0 : 0.0,
+                child: _expanded
+                  ? Center(
+                      child: IconButton(
+                        icon: const Icon(
+                          Icons.check,
+                          color: CorporativeColors.whiteColor,
+                          size: 14,
+                        ),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                        onPressed: _handleRatingConfirmation,
+                      ),
+                    )
+                  : const SizedBox.shrink(),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+    // Construye el botón para mostrar/ocultar el sistema de calificación
+  Widget _buildRatingToggleButton(Duration animationDuration, Curve animationCurve) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 8.0),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(12),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          splashColor: CorporativeColors.mainColor.withOpacity(0.3),
+          highlightColor: CorporativeColors.mainColor.withOpacity(0.1),
+          child: Container(
+            width: 30,
+            height: 30,
+            padding: EdgeInsets.zero,            child: Center(
+              child: AnimatedOpacity(
+                opacity: _expanded ? 0.0 : 1.0, // Desaparece cuando se muestra el botón de confirmar
+                duration: const Duration(milliseconds: 150),
+                child: AnimatedRotation(
+                  duration: animationDuration,
+                  curve: animationCurve,
+                  turns: _showRating ? 0.25 : 0, // Gira 90 grados (0.25 vueltas)
+                  child: Icon(
+                    Icons.keyboard_arrow_down,
+                    color: _showRating ? CorporativeColors.mainColor : Colors.grey,
+                    size: 22,
+                  ),
                 ),
               ),
             ),
-        ],
-      ),
-    );
-  }
-  
-  // Construye la fila con el sistema de calificación
-  Widget _buildRatingRow(Duration animationDuration, Curve animationCurve, bool isSmallScreen) {
-    return Container(
-      padding: const EdgeInsets.only(bottom: 8, top: 6, right: 16),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.end, // Alineado a la derecha
-        children: [
-          // Sistema de rating ahora a la derecha
-          SizedBox(
-            width: 170, 
-            child: _buildRatingSystem(animationDuration, animationCurve),
-          ),
-        ],
-      ),
-    );
-  }
-  
-  // Construye el sistema de calificación con estrellas y botón de confirmación
-  Widget _buildRatingSystem(Duration animationDuration, Curve animationCurve) {
-    return Stack(
-      alignment: Alignment.centerRight, // Alineación a la derecha
-      clipBehavior: Clip.none,
-      children: [
-        // Estrellas de calificación con animación
-        AnimatedContainer(
-          duration: animationDuration,
-          curve: animationCurve,
-          transform: Matrix4.translationValues(
-            _expanded ? -30.0 : 0.0, 0, 0,
-          ),
-          child: Rating(
-            rating: _currentRating,
-            itemSize: 20, // Tamaño ligeramente mayor para mejor visibilidad
-            rateable: true,
-            onRatingUpdate: _handleRatingUpdate,
-          ),
+          ),          onTap: () {
+            setState(() {
+              // Solo permitimos cambiar el estado si no hay confirmación pendiente
+              if (!_expanded) {
+                _showRating = !_showRating;
+                // Si acabamos de ocultar el rating, también ocultamos el botón de confirmación
+                if (!_showRating) {
+                  _expanded = false;
+                }
+              } else {
+                // Si hay una confirmación pendiente, solo permitimos ocultar
+                if (_showRating) {
+                  _showRating = false;
+                  _expanded = false;
+                }
+              }
+            });
+          },
         ),
-        
-        // Botón de confirmación
-        Positioned(
-          right: 0,
-          top: 0,
-          bottom: 0,
-          child: AnimatedContainer(
-            duration: animationDuration,
-            curve: animationCurve,
-            width: _expanded ? 34.0 : 0.0,
-            decoration: BoxDecoration(
-              color: CorporativeColors.mainColor.withOpacity(0.25),
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(
-                color: Colors.white,
-                width: 1.5,
-              ),
-              boxShadow: _expanded ? [
-                BoxShadow(
-                  color: Colors.white.withOpacity(0.3),
-                  blurRadius: 5,
-                  spreadRadius: 1,
-                )
-              ] : null,
-            ),
-            child: _expanded
-                ? Center(
-                    child: IconButton(
-                      icon: const Icon(
-                        Icons.check,
-                        color: CorporativeColors.whiteColor,
-                        size: 16,
-                      ),
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
-                      onPressed: _handleRatingConfirmation,
-                    ),
-                  )
-                : null,
-          ),
-        ),
-      ],
+      ),
     );
   }
 }

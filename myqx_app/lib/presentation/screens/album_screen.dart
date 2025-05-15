@@ -287,7 +287,6 @@ class _AlbumScreenState extends State<AlbumScreen> {
                   albumCoverUrl: _imageUrl,
                   spotifyUrl: '$_spotifyUrl?track=${index+1}',
                   songId: track.id,
-                  previewUrl: track.previewUrl,
                   rating: 0.0,
                   onRatingChanged: (newRating) {
                     debugPrint('Nueva calificación para ${track.name}: $newRating');

@@ -394,7 +394,6 @@ class _SearchScreenState extends State<SearchScreen> {
                       albumCoverUrl: track.imageUrl ?? '',
                       spotifyUrl: track.spotifyUrl,
                       songId: track.id,
-                      previewUrl: track.previewUrl, // Añadimos la URL de previsualización
                       rating: 0.0, // Calificación inicial
                       loadRating: false, // No cargar calificaciones individualmente desde el servidor en la pantalla de búsqueda
                       onRatingChanged: (rating) {
