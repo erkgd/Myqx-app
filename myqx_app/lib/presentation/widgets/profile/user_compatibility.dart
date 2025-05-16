@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:math' as math;
 import 'dart:async';
 import 'package:myqx_app/core/constants/corporative_colors.dart';
-import 'package:myqx_app/presentation/widgets/general/music_container.dart';
+
 
 class UserCompatibility extends StatefulWidget {
   final int compatibilityPercentage;
@@ -115,10 +115,11 @@ class _UserCompatibilityState extends State<UserCompatibility> with SingleTicker
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) {    
     return Container(
       width: 150,
       decoration: BoxDecoration(
+        color: Colors.black,
         border: Border.all(color: CorporativeColors.mainColor, width: 2),
         borderRadius: BorderRadius.circular(8.0),
       ),

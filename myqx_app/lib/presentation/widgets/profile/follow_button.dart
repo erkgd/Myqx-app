@@ -84,8 +84,7 @@ class _FollowButtonState extends State<FollowButton> with SingleTickerProviderSt
         _isFollowing = widget.isFollowing;
       });
     }
-  }
-  @override
+  }  @override
   Widget build(BuildContext context) {
     // Siempre mostramos el botón, pero con diferentes estados
     return AnimatedOpacity(
@@ -95,8 +94,8 @@ class _FollowButtonState extends State<FollowButton> with SingleTickerProviderSt
         width: 90,
         height: 30,
         child: ElevatedButton(
-          // Botón deshabilitado durante inicialización o carga
-          onPressed: (_isInitializing || _isLoading) ? null : _toggleFollowStatus,
+          // Botón deshabilitado solo durante inicialización (no durante carga para UI optimista)
+          onPressed: _isInitializing ? null : _toggleFollowStatus,
           style: ElevatedButton.styleFrom(
             backgroundColor: _isFollowing ? Colors.black : CorporativeColors.whiteColor,
             foregroundColor: _isFollowing ? CorporativeColors.whiteColor : Colors.black,
@@ -123,8 +122,8 @@ class _FollowButtonState extends State<FollowButton> with SingleTickerProviderSt
                     : CorporativeColors.whiteColor.withOpacity(0.7),
             disabledForegroundColor: Colors.grey,
           ),
-          child: _isInitializing || _isLoading
-            // Mostrar indicador de carga dentro del botón
+          child: _isInitializing
+            // Mostrar indicador de carga solo durante inicialización
             ? const SizedBox(
                 height: 12,
                 width: 12,
@@ -133,7 +132,7 @@ class _FollowButtonState extends State<FollowButton> with SingleTickerProviderSt
                   strokeWidth: 2,
                 ),
               )
-            // Mostrar el texto normal cuando está listo
+            // Mostrar el texto normal cuando está listo (incluso durante carga para UI optimista)
             : Text(
                 _isFollowing ? 'Unfollow' : 'Follow',
                 style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
@@ -141,37 +140,40 @@ class _FollowButtonState extends State<FollowButton> with SingleTickerProviderSt
         ),
       ),
     );
-  }
-  /// Alterna el estado de seguimiento del usuario
+  }/// Alterna el estado de seguimiento del usuario con UI optimista
   Future<void> _toggleFollowStatus() async {
     if (_isLoading) return; // Evitar múltiples clics
     
+    // Iniciar estado de carga
     setState(() {
       _isLoading = true;
     });
     
+    // Guardar estado anterior para poder revertirlo en caso de error
+    bool previousState = _isFollowing;
+    
+    // UI Optimista: Actualizar estado inmediatamente
+    setState(() {
+      _isFollowing = !_isFollowing;
+    });
+    
     try {
-      // Guardar estado anterior para poder revertirlo en caso de error
-      bool previousState = _isFollowing;
       bool actionSuccess = false;
       
-      // No actualizamos el estado visual hasta confirmar con el servidor
+      // Realizar la acción en el servidor según el estado anterior
       if (previousState) {
         // Intentar dejar de seguir al usuario
         debugPrint("[DEBUG] Intentando unfollow para usuario: ${widget.userId}");
         actionSuccess = await widget.profileService.unfollowUser(widget.userId);
         
-        if (actionSuccess) {
-          debugPrint("[DEBUG] Unfollow exitoso confirmado por servidor");
-          if (mounted) {
-            setState(() {
-              _isFollowing = false;
-            });
-          }
-        } else {
-          // La operación falló
+        if (!actionSuccess) {
+          // La operación falló, revertir al estado anterior
           debugPrint("[ERROR] Unfollow falló según respuesta del servidor");
           if (mounted) {
+            setState(() {
+              _isFollowing = previousState; // Revertir al estado anterior
+            });
+            
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text('No se pudo dejar de seguir a ${widget.displayName}'),
@@ -180,23 +182,29 @@ class _FollowButtonState extends State<FollowButton> with SingleTickerProviderSt
               ),
             );
           }
+        } else {
+          debugPrint("[DEBUG] Unfollow exitoso confirmado por servidor");
+          
+          // Verificamos explícitamente que el estado sea 'false' después de un unfollow exitoso
+          if (mounted) {
+            setState(() {
+              _isFollowing = false;
+            });
+          }
         }
       } else {
         // Intentar seguir al usuario
         debugPrint("[DEBUG] Intentando follow para usuario: ${widget.userId}");
         actionSuccess = await widget.profileService.followUser(widget.userId);
         
-        if (actionSuccess) {
-          debugPrint("[DEBUG] Follow exitoso confirmado por servidor");
-          if (mounted) {
-            setState(() {
-              _isFollowing = true;
-            });
-          }
-        } else {
-          // La operación falló
+        if (!actionSuccess) {
+          // La operación falló, revertir al estado anterior
           debugPrint("[ERROR] Follow falló según respuesta del servidor");
           if (mounted) {
+            setState(() {
+              _isFollowing = previousState; // Revertir al estado anterior
+            });
+            
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text('No se pudo seguir a ${widget.displayName}'),
@@ -205,8 +213,20 @@ class _FollowButtonState extends State<FollowButton> with SingleTickerProviderSt
               ),
             );
           }
+        } else {
+          debugPrint("[DEBUG] Follow exitoso confirmado por servidor");
+          
+          // Verificamos explícitamente que el estado sea 'true' después de un follow exitoso
+          if (mounted) {
+            setState(() {
+              _isFollowing = true;
+            });
+          }
         }
       }
+      
+      // Añadir un retraso antes de consultar el estado actual para dar tiempo a la API de actualizarse
+      await Future.delayed(const Duration(milliseconds: 500));
       
       // Siempre verificar el estado actual con el servidor después de la operación
       // para asegurar que la UI esté sincronizada

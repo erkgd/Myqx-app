@@ -58,8 +58,6 @@ class UnaffiliatedProfileService extends ChangeNotifier {
   // Duración de validez de la caché (10 minutos)
   static const Duration _cacheDuration = Duration(minutes: 10);
   
-
-  
   /// Método principal para cargar perfil de usuario no afiliado
   ///
   /// Este método primero verifica en caché y luego hace una petición a la API si es necesario
@@ -377,7 +375,8 @@ class UnaffiliatedProfileService extends ChangeNotifier {
     } catch (e) {
       debugPrint('[ERROR] Error al procesar respuesta directa: $e');
     }
-  }  /// Método para comprobar si el usuario actual sigue al usuario del perfil
+  }
+  /// Método para comprobar si el usuario actual sigue al usuario del perfil
   Future<bool> isFollowing(String userId) async {
     try {
       // Obtenemos el ID del usuario actual
@@ -395,30 +394,14 @@ class UnaffiliatedProfileService extends ChangeNotifier {
       
       // Utilizamos la ruta correcta según la API: /users/following/status/{id_follower}/{id_followed}
       final response = await _apiClient.get('/users/following/status/$currentUserId/$userId');
-      debugPrint('[DEBUG] Estado de seguimiento (respuesta completa): ${response.toString()}');
-      
-      // Verificar la estructura de la respuesta y acceder al estado de seguimiento
-      bool isFollowing = false;
-      
-      // Verificar si el valor está dentro del campo 'data'
-      if (response['data'] != null && response['data']['is_following'] != null) {
-        isFollowing = response['data']['is_following'] == true;
-        debugPrint('[DEBUG] Estado de seguimiento encontrado en data.is_following: $isFollowing');
-      } 
-      // Verificar si está directamente en la raíz de la respuesta
-      else if (response['is_following'] != null) {
-        isFollowing = response['is_following'] == true;
-        debugPrint('[DEBUG] Estado de seguimiento encontrado en is_following: $isFollowing');
-      }
-      
-      debugPrint('[DEBUG] Estado de seguimiento final: $isFollowing');
-      return isFollowing;
+      debugPrint('[DEBUG] Estado de seguimiento: ${response.toString()}');
+      return response['is_following'] ?? false;
     } catch (e) {
       debugPrint('[ERROR] Error al verificar si sigue al usuario: ${e.toString()}');
       return false;
     }
   }
-  /// Método para seguir a un usuario
+    /// Método para seguir a un usuario
   Future<bool> followUser(String userId) async {
     try {
       // Obtener el ID del usuario actual
@@ -427,26 +410,13 @@ class UnaffiliatedProfileService extends ChangeNotifier {
         debugPrint('[ERROR] No se pudo obtener el ID del usuario actual para seguir');
         return false;
       }
-      
-      // Usar el formato correcto de la ruta: /users/following/{id_follower}/{id_followed}
+        // Usar el formato correcto de la ruta: /users/following/{id_follower}/{id_followed}
       final response = await _apiClient.post('/users/following/$currentUserId/$userId');
       
       debugPrint('[DEBUG] Petición de seguir enviada a: /users/following/$currentUserId/$userId');
       debugPrint('[DEBUG] Respuesta del servidor: ${response.toString()}');
       
-      // Verificar si la respuesta fue exitosa basándose en el campo 'status'
-      bool isSuccess = false;
-      
-      if (response['success'] != null) {
-        // Formato antiguo que usa campo 'success'
-        isSuccess = response['success'] == true;
-      } else if (response['status'] != null) {
-        // Formato nuevo que usa campo 'status'
-        isSuccess = response['status'] == 'success';
-      }
-      
-      debugPrint('[DEBUG] Operación de follow exitosa: $isSuccess');
-      return isSuccess;
+      return response['success'] ?? false;
     } catch (e) {
       debugPrint('[ERROR] Error al seguir al usuario: ${e.toString()}');
       _errorMessage = 'No se pudo seguir al usuario: ${e.toString()}';
@@ -454,7 +424,7 @@ class UnaffiliatedProfileService extends ChangeNotifier {
       return false;
     }
   }
-  /// Método para dejar de seguir a un usuario
+    /// Método para dejar de seguir a un usuario
   Future<bool> unfollowUser(String userId) async {
     try {
       // Obtener el ID del usuario actual
@@ -469,25 +439,7 @@ class UnaffiliatedProfileService extends ChangeNotifier {
       debugPrint('[DEBUG] Petición de dejar de seguir enviada a: /users/following/$currentUserId/$userId');
       debugPrint('[DEBUG] Respuesta del servidor: ${response.toString()}');
       
-      // Verificar si la respuesta fue exitosa basándose en el campo 'status'
-      bool isSuccess = false;
-      
-      if (response['success'] != null) {
-        // Formato antiguo que usa campo 'success'
-        isSuccess = response['success'] == true;
-      } else if (response['status'] != null) {
-        // Formato nuevo que usa campo 'status'
-        isSuccess = response['status'] == 'success';
-        
-        // También verificar si hay información adicional en el campo 'data'
-        if (response['data'] != null && response['data']['status'] == 'unfollowed') {
-          debugPrint('[DEBUG] Estado de unfollowed confirmado en data.status');
-          isSuccess = true;
-        }
-      }
-      
-      debugPrint('[DEBUG] Operación de unfollow exitosa: $isSuccess');
-      return isSuccess;
+      return response['success'] ?? false;
     } catch (e) {
       debugPrint('[ERROR] Error al dejar de seguir al usuario: ${e.toString()}');
       _errorMessage = 'No se pudo dejar de seguir al usuario: ${e.toString()}';

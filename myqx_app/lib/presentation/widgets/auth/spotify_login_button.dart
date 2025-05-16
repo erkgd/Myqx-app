@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:myqx_app/core/constants/corporative_colors.dart';
 import 'package:myqx_app/core/services/spotify_auth_service.dart';
 import 'package:provider/provider.dart';
@@ -88,6 +89,7 @@ class SpotifyLoginButton extends StatelessWidget {
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(27),
             ),
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
           ),
           icon: isLoading 
               ? const SizedBox(
@@ -98,12 +100,17 @@ class SpotifyLoginButton extends StatelessWidget {
                     strokeWidth: 2,
                   ),
                 )
-              : Image.asset(
+              : SvgPicture.asset(
                   'assets/images/spotifyLogo.svg',
                   height: 24,
-                  errorBuilder: (context, error, stackTrace) {
-                    return const Icon(Icons.music_note, color: Color(0xFF1DB954));
-                  },
+                  colorFilter: const ColorFilter.mode(
+                    Color(0xFF1DB954),
+                    BlendMode.srcIn,
+                  ),
+                  placeholderBuilder: (context) => const Icon(
+                    Icons.music_note,
+                    color: Color(0xFF1DB954),
+                  ),
                 ),
           label: Text(
             isLoading ? 'CONNECTING...' : 'CONTINUE WITH SPOTIFY',

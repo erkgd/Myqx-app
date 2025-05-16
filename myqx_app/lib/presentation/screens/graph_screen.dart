@@ -3,9 +3,7 @@ import 'package:graphview/GraphView.dart';
 import 'package:myqx_app/core/constants/corporative_colors.dart';
 import 'package:myqx_app/core/services/user_graph_service.dart';
 import 'package:myqx_app/core/storage/secure_storage.dart';
-import 'package:myqx_app/presentation/widgets/spotify/user_circle.dart';
 import 'package:myqx_app/presentation/widgets/general/user_header.dart';
-import 'package:myqx_app/presentation/screens/unaffiliated_profile_screen.dart';
 import 'package:myqx_app/presentation/providers/navigation_provider.dart';
 import 'package:provider/provider.dart';
 
@@ -151,13 +149,13 @@ class _GraphScreenState extends State<GraphScreen> {
         }
         
         // Añadir arista solo si no es una recomendación
-        if (!isRecommended) {
+        if (!isRecommended) {          
           graph.addEdge(
             nodes[followerId]!, 
             nodes[followedId]!,
             paint: Paint()
               ..color = CorporativeColors.mainColor
-              ..strokeWidth = 2
+              ..strokeWidth = 10.0 // Líneas mucho más gruesas para mejor visibilidad
           );
         }
       }
@@ -219,23 +217,24 @@ class _GraphScreenState extends State<GraphScreen> {
                     children: [
                       const SizedBox(height: 20),                      
 
-                      const SizedBox(height: 10),Expanded(
+                      const SizedBox(height: 10),                      
+                      Expanded(
                         child: InteractiveViewer(
                           constrained: false,
-                          boundaryMargin: const EdgeInsets.all(100),
-                          minScale: 0.1,
-                          maxScale: 2.0,                          
-
+                          boundaryMargin: const EdgeInsets.all(1000), // Aumentado considerablemente para evitar problemas con nodos en bordes
+                          minScale: 0.05,
+                          maxScale: 3.5, // Mayor rango de zoom para mejor visualización
+                          
                           child: GraphView(
-                            graph: graph,                      
-
-                            algorithm: FruchtermanReingoldAlgorithm(
-                              iterations: 1000 // Solo parámetro básico disponible
+                            graph: graph,
+                              algorithm: FruchtermanReingoldAlgorithm(
+                              iterations: 2000 // Aumentado para mejor distribución de nodos en el espacio
                             ),
                             paint: Paint()
                               ..color = Colors.white
-                              ..strokeWidth = 2.0
-                              ..style = PaintingStyle.stroke,                            builder: (Node node) {                              // Verificar si este nodo es el usuario actual
+                              ..strokeWidth = 15.0
+                              ..style = PaintingStyle.stroke,                            
+                              builder: (Node node) {                              // Verificar si este nodo es el usuario actual
                               final nodeId = node.key?.value?.toString() ?? "";
                               // Comparar con el ID del usuario actual cargado desde SecureStorage
                               final isCurrentUser = _currentUserId != null && nodeId == _currentUserId;
@@ -279,10 +278,10 @@ class _GraphScreenState extends State<GraphScreen> {
             ),
           );
         }
-      },
+      },      
       child: Container(
-      width: isCurrentUser ? 70.0 : 55.0, // Tamaños más grandes para los nodos
-      height: isCurrentUser ? 70.0 : 55.0,
+      width: isCurrentUser ? 90.0 : 70.0, // Nodos aún más grandes
+      height: isCurrentUser ? 90.0 : 70.0,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         border: Border.all(

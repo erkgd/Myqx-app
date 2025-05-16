@@ -70,8 +70,7 @@ class _UnaffiliatedProfileScreenState extends State<UnaffiliatedProfileScreen> w
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
-  }
-  /// Verifica si el usuario actual está siguiendo al perfil visualizado
+  }  /// Verifica si el usuario actual está siguiendo al perfil visualizado
   Future<void> _loadFollowingStatus() async {
     try {
       final currentUserId = await _secureStorage.getUserId();
@@ -83,6 +82,9 @@ class _UnaffiliatedProfileScreenState extends State<UnaffiliatedProfileScreen> w
         }
         return;
       }
+      
+      // Evitar cualquier caché añadiendo un timestamp a la petición
+      await Future.delayed(const Duration(milliseconds: 100));
       
       // Actualizar estado de seguimiento desde API
       final isFollowing = await _profileService.isFollowing(widget.userId);
@@ -101,6 +103,22 @@ class _UnaffiliatedProfileScreenState extends State<UnaffiliatedProfileScreen> w
       }
     }
   }
+  
+  // Método para recargar solo el estado de seguimiento (puede ser llamado después de un cambio)
+  Future<void> _refreshFollowingStatus() async {
+    try {
+      final isFollowing = await _profileService.isFollowing(widget.userId);
+      
+      if (mounted) {
+        setState(() {
+          _isFollowing = isFollowing;
+        });
+        debugPrint("[DEBUG] Estado de seguimiento refrescado: ${_isFollowing ? 'Following' : 'Not following'}");
+      }
+    } catch (e) {
+      debugPrint("[ERROR] Error al refrescar estado de seguimiento: $e");
+    }
+  }
 
     // Se han eliminado los métodos de carga progresiva
   
@@ -111,12 +129,11 @@ class _UnaffiliatedProfileScreenState extends State<UnaffiliatedProfileScreen> w
       appBar: const UserHeader(),
       body: _buildBody(),
     );
-  }
-    Widget _buildBody() {
+  }    Widget _buildBody() {
     // Si el servicio está cargando pero tenemos datos en caché, mostrar contenido con indicador
-    final bool isServiceLoading = _profileService.isLoading;
     final bool hasProfileData = _profileService.profileUser != null;
-      if (_isLoading && !hasProfileData) {
+    
+    if (_isLoading && !hasProfileData) {
       // Implementar el círculo de carga estilizado similar al profile_screen.dart
       return Center(
         child: Column(
@@ -168,7 +185,8 @@ class _UnaffiliatedProfileScreenState extends State<UnaffiliatedProfileScreen> w
             ),
           ],
         ),
-      );    } else if (hasProfileData) {
+      );    
+    } else if (hasProfileData) {
       // Simplemente mostrar el contenido principal sin el botón de recarga
       return _buildProfileContent();
     } else {
@@ -353,8 +371,7 @@ class _UnaffiliatedProfileScreenState extends State<UnaffiliatedProfileScreen> w
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Expanded(
+                  children: [                    Expanded(
                       flex: 7,
                       child: starTrack != null ? StarOfTheDay(
                         albumCoverUrl: starTrack.imageUrl ?? '',
