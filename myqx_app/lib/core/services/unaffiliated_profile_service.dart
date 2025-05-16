@@ -1,4 +1,3 @@
-
 import 'package:flutter/foundation.dart';
 import 'package:myqx_app/core/http/api_client.dart';
 import 'package:myqx_app/core/storage/secure_storage.dart';
@@ -375,8 +374,7 @@ class UnaffiliatedProfileService extends ChangeNotifier {
     } catch (e) {
       debugPrint('[ERROR] Error al procesar respuesta directa: $e');
     }
-  }
-  /// Método para comprobar si el usuario actual sigue al usuario del perfil
+  }  /// Método para comprobar si el usuario actual sigue al usuario del perfil
   Future<bool> isFollowing(String userId) async {
     try {
       // Obtenemos el ID del usuario actual
@@ -395,7 +393,30 @@ class UnaffiliatedProfileService extends ChangeNotifier {
       // Utilizamos la ruta correcta según la API: /users/following/status/{id_follower}/{id_followed}
       final response = await _apiClient.get('/users/following/status/$currentUserId/$userId');
       debugPrint('[DEBUG] Estado de seguimiento: ${response.toString()}');
-      return response['is_following'] ?? false;
+      
+      _debugResponseFormat(response);
+      
+      bool isFollowing = false;
+      
+      // Verificar estructura anidada de la respuesta según el formato observado
+      if (response['status'] == 'success' && response.containsKey('data') && response['data'] is Map) {
+        // Formato: {status: success, data: {is_following: true, follower_id: X, followed_id: Y}}
+        isFollowing = response['data']['is_following'] == true;
+        debugPrint('[DEBUG] Estado de seguimiento extraído de data: $isFollowing');
+      } 
+      else if (response.containsKey('data') && response['data'] is Map && response['data'].containsKey('status')) {
+        // Formato alternativo con status dentro de data
+        final status = response['data']['status'];
+        isFollowing = status == 'followed';
+        debugPrint('[DEBUG] Estado de seguimiento basado en status=$status: $isFollowing');
+      }
+      else if (response.containsKey('is_following')) {
+        // Buscar directamente en la respuesta
+        isFollowing = response['is_following'] == true;
+        debugPrint('[DEBUG] Estado de seguimiento extraído de raíz: $isFollowing');
+      }
+      
+      return isFollowing;
     } catch (e) {
       debugPrint('[ERROR] Error al verificar si sigue al usuario: ${e.toString()}');
       return false;
@@ -412,11 +433,24 @@ class UnaffiliatedProfileService extends ChangeNotifier {
       }
         // Usar el formato correcto de la ruta: /users/following/{id_follower}/{id_followed}
       final response = await _apiClient.post('/users/following/$currentUserId/$userId');
-      
-      debugPrint('[DEBUG] Petición de seguir enviada a: /users/following/$currentUserId/$userId');
+        debugPrint('[DEBUG] Petición de seguir enviada a: /users/following/$currentUserId/$userId');
       debugPrint('[DEBUG] Respuesta del servidor: ${response.toString()}');
       
-      return response['success'] ?? false;
+      // Comprobación mejorada para manejar diferentes formatos de respuesta
+      if (response['status'] == 'success') {
+        // Formato nuevo: {status: success, data: {...}}
+        return true;
+      } else if (response['data'] != null && response['data']['status'] == 'followed') {
+        // Comprobación del campo status dentro de data para "followed"
+        return true;
+      } else if (response['success'] == true) {
+        // Formato anterior - por si acaso
+        return true;
+      }
+      
+      // Si no se encontró ningún indicador de éxito, asumimos que falló
+      debugPrint('[WARNING] No se reconoció un formato de éxito en la respuesta');
+      return false;
     } catch (e) {
       debugPrint('[ERROR] Error al seguir al usuario: ${e.toString()}');
       _errorMessage = 'No se pudo seguir al usuario: ${e.toString()}';
@@ -436,10 +470,23 @@ class UnaffiliatedProfileService extends ChangeNotifier {
         // Usar el formato correcto de la ruta: /users/following/{id_follower}/{id_followed}
       final response = await _apiClient.delete('/users/following/$currentUserId/$userId');
       
-      debugPrint('[DEBUG] Petición de dejar de seguir enviada a: /users/following/$currentUserId/$userId');
-      debugPrint('[DEBUG] Respuesta del servidor: ${response.toString()}');
+      debugPrint('[DEBUG] Petición de dejar de seguir enviada a: /users/following/$currentUserId/$userId');      debugPrint('[DEBUG] Respuesta del servidor: ${response.toString()}');
       
-      return response['success'] ?? false;
+      // Comprobación mejorada para manejar diferentes formatos de respuesta
+      if (response['status'] == 'success') {
+        // Formato nuevo: {status: success, data: {...}}
+        return true;
+      } else if (response['data'] != null && response['data']['status'] == 'unfollowed') {
+        // Comprobación del campo status dentro de data para "unfollowed"
+        return true;
+      } else if (response['success'] == true) {
+        // Formato anterior - por si acaso
+        return true;
+      }
+      
+      // Si no se encontró ningún indicador de éxito, asumimos que falló
+      debugPrint('[WARNING] No se reconoció un formato de éxito en la respuesta');
+      return false;
     } catch (e) {
       debugPrint('[ERROR] Error al dejar de seguir al usuario: ${e.toString()}');
       _errorMessage = 'No se pudo dejar de seguir al usuario: ${e.toString()}';
@@ -542,6 +589,24 @@ class UnaffiliatedProfileService extends ChangeNotifier {
     _errorMessage = null;
     _compatibility = 0.0;
     notifyListeners();
+  }
+  
+  /// Método auxiliar para depuración que muestra el formato de la respuesta
+  void _debugResponseFormat(Map<String, dynamic> response) {
+    try {
+      if (response.containsKey('data')) {
+        debugPrint('[DEBUG] Respuesta tiene formato: {status, data}');
+        if (response['data'] is Map && response['data'].containsKey('is_following')) {
+          debugPrint('[DEBUG] El valor de is_following está en data: ${response['data']['is_following']}');
+        }
+      } else if (response.containsKey('is_following')) {
+        debugPrint('[DEBUG] El valor de is_following está en la raíz: ${response['is_following']}');
+      } else {
+        debugPrint('[DEBUG] Formato de respuesta desconocido: ${response.keys.toList()}');
+      }
+    } catch (e) {
+      debugPrint('[ERROR] Error al analizar formato de respuesta: $e');
+    }
   }
   
   
