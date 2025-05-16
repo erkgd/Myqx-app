@@ -23,12 +23,36 @@ class FollowButton extends StatefulWidget {
 
 class _FollowButtonState extends State<FollowButton> {
   late bool _isFollowing;
-  bool _isLoading = false;
+  bool _isInitializing = true; // Estado para la carga inicial
 
   @override
   void initState() {
     super.initState();
     _isFollowing = widget.isFollowing;
+    
+    // Verificar el estado inicial con el servidor
+    _verifyInitialFollowingStatus();
+  }
+  
+  /// Método para verificar el estado inicial de seguimiento
+  Future<void> _verifyInitialFollowingStatus() async {
+    try {
+      final serverStatus = await widget.profileService.isFollowing(widget.userId);
+      if (mounted) {
+        setState(() {
+          _isFollowing = serverStatus;
+          _isInitializing = false; // Ya tenemos respuesta del servidor
+        });
+        debugPrint("[DEBUG] Initial server follow status: $_isFollowing");
+      }
+    } catch (e) {
+      debugPrint("[ERROR] Error verificando estado inicial: $e");
+      if (mounted) {
+        setState(() {
+          _isInitializing = false; // Aunque falle, permitimos mostrar el botón
+        });
+      }
+    }
   }
 
   @override
@@ -40,14 +64,14 @@ class _FollowButtonState extends State<FollowButton> {
       });
     }
   }
-
   @override
   Widget build(BuildContext context) {
     return SizedBox(
       width: 90,
       height: 30,
       child: ElevatedButton(
-        onPressed: _isLoading ? null : _toggleFollowStatus,
+        // Solo deshabilitamos el botón durante la inicialización, no durante las operaciones (UI optimista)
+        onPressed: _isInitializing ? null : _toggleFollowStatus,
         style: ElevatedButton.styleFrom(
           backgroundColor: _isFollowing ? Colors.black : CorporativeColors.whiteColor,
           foregroundColor: _isFollowing ? CorporativeColors.whiteColor : Colors.black,
@@ -61,8 +85,11 @@ class _FollowButtonState extends State<FollowButton> {
           padding: EdgeInsets.zero,
           minimumSize: Size.zero,
           tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          // Color de fondo más claro durante la inicialización
+          disabledBackgroundColor: Colors.grey[800],
+          disabledForegroundColor: Colors.grey,
         ),
-        child: _isLoading
+        child: _isInitializing
           ? const SizedBox(
               height: 12,
               width: 12,
@@ -75,15 +102,13 @@ class _FollowButtonState extends State<FollowButton> {
       ),
     );
   }
-
   /// Alterna el estado de seguimiento del usuario
   Future<void> _toggleFollowStatus() async {
-    setState(() {
-      _isLoading = true;
-    });
+    // No activamos estado de carga para implementar UI optimista
+    // (el botón responde inmediatamente sin mostrar indicador de carga)
     
     try {
-      // Optimistic UI update - actualizamos la UI inmediatamente
+      // Optimistic UI update - actualizamos la UI inmediatamente 
       bool previousState = _isFollowing;
       
       // Actualizar el estado de inmediato para una respuesta instantánea
@@ -163,14 +188,8 @@ class _FollowButtonState extends State<FollowButton> {
             backgroundColor: Colors.red,
           ),
         );
-      }
-    } finally {
-      // Terminamos el estado de carga específico para el botón
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
+      }    } finally {
+      // No necesitamos finalizar ningún estado de carga ya que implementamos UI optimista
     }
   }
 }
