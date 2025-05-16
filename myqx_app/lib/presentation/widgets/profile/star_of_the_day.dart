@@ -3,12 +3,11 @@ import 'package:myqx_app/core/constants/corporative_colors.dart';
 import 'package:myqx_app/presentation/widgets/spotify/spotify_link.dart';
 import 'package:myqx_app/presentation/widgets/general/music_container.dart';
 
-class StarOfTheDay extends StatelessWidget {
-  final String albumCoverUrl;
+class StarOfTheDay extends StatelessWidget {  final String albumCoverUrl;
   final String artistName;
   final String songName;
   final String spotifyUrl;
-  final String title;
+  final String? title;
 
   const StarOfTheDay({
     Key? key,
@@ -16,7 +15,7 @@ class StarOfTheDay extends StatelessWidget {
     required this.artistName,
     required this.songName,
     required this.spotifyUrl,
-    this.title = "Star Track",
+    this.title,
   }) : super(key: key);
   
   /// Extrae el ID de Spotify de una URL completa
@@ -45,16 +44,10 @@ class StarOfTheDay extends StatelessWidget {
     }
   }  @override
   Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final targetWidth = screenWidth * 0.55;
-    
-    return Column(
+      return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        // Título de la sección fuera del contenedor
-      
-        
         // Contenedor principal
         ConstrainedBox(
           constraints: BoxConstraints(
@@ -68,8 +61,19 @@ class StarOfTheDay extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.max,
-                children: [
-              
+                children: [              // Título interno - solo se muestra si se proporciona
+              if (title != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 12.0, left: 16.0, right: 12.0),
+                  child: Text(
+                    title!,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
               // Portada del álbum con padding
               Padding(
                 padding: const EdgeInsets.all(12.0),

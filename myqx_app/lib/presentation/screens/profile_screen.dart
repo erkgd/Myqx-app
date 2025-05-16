@@ -18,7 +18,7 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> with WidgetsBindingObserver {
-  bool _isFollowing = false;
+
   bool _isLoading = true;
   late final SpotifyProfileService _profileService;
   
@@ -158,8 +158,8 @@ class _ProfileScreenState extends State<ProfileScreen> with WidgetsBindingObserv
             // Profile circle with actual image if available
             Center(
               child: Container(
-                width: 160,
-                height: 160,
+                width: 140,
+                height: 140,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   border: Border.all(
@@ -223,6 +223,7 @@ class _ProfileScreenState extends State<ProfileScreen> with WidgetsBindingObserv
                         artistName: starTrack.artistName,
                         songName: starTrack.name,
                         spotifyUrl: starTrack.spotifyUrl,
+                        title: "Star Track",
                       ) : const Center(
                         child: Text(
                           "No star track available",

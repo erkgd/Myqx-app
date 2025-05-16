@@ -13,23 +13,39 @@ class TopFiveAlbums extends StatelessWidget {
     required this.albums,
     this.loading = false,
     this.title = "Top Albums",
-  }) : super(key: key);  @override
-  Widget build(BuildContext context) {
+  }) : super(key: key);  @override  Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        
         // Contenedor principal
         MusicContainer(
           borderColor: Colors.white,
-          child: Padding(
-            padding: const EdgeInsets.all(12.0),
-            child: SizedBox(
-              height: 110, // Altura ajustada para la fila de álbumes
-              child: loading 
-                ? _buildLoadingIndicator()
-                : _buildAlbumsList(),
-            ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Título interno
+              Padding(
+                padding: const EdgeInsets.only(top: 6.0, left: 12.0, right: 12.0, bottom: 8.0),
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+              // Contenido
+              Padding(
+                padding: const EdgeInsets.only(left: 12.0, right: 12.0, bottom: 12.0),
+                child: SizedBox(
+                  height: 110, // Altura ajustada para la fila de álbumes
+                  child: loading 
+                    ? _buildLoadingIndicator()
+                    : _buildAlbumsList(),
+                ),
+              ),
+            ],
           ),
         ),
       ],

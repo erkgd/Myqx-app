@@ -116,8 +116,12 @@ class _UserCompatibilityState extends State<UserCompatibility> with SingleTicker
 
   @override
   Widget build(BuildContext context) {
-    return MusicContainer(
-      borderColor: CorporativeColors.mainColor,
+    return Container(
+      width: 150,
+      decoration: BoxDecoration(
+        border: Border.all(color: CorporativeColors.mainColor, width: 2),
+        borderRadius: BorderRadius.circular(8.0),
+      ),
       child: Padding(
         padding: const EdgeInsets.all(4.0),
         child: Column(
