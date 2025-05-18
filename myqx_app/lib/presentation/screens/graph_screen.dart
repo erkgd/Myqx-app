@@ -32,6 +32,8 @@ class _GraphScreenState extends State<GraphScreen> {
   String? _currentUserId;
   // Almacena información de usuarios por ID
   Map<String, Map<String, dynamic>> _userData = {};
+  // Almacena información de seguimiento: clave = ID del usuario seguido, valor = true si el usuario actual lo sigue
+  Map<String, bool> _followingStatus = {};
 
   bool _isLoading = true;
   String? _errorMessage;
@@ -104,13 +106,14 @@ class _GraphScreenState extends State<GraphScreen> {
       });
     }
   }
-
   // Construye el grafo a partir de los datos
   void _buildGraph(Map<String, dynamic> networkData) {
     // Mapa para almacenar nodos por ID para evitar duplicados
     final Map<dynamic, Node> nodes = {};
     // Mapa para almacenar datos completos de usuarios por ID
     final Map<String, Map<String, dynamic>> userData = {};
+    // Mapa para almacenar el estado de seguimiento
+    final Map<String, bool> followingStatus = {};
     
     // Añadir nodos al grafo
     if (networkData['following_network'] != null) {
@@ -137,6 +140,13 @@ class _GraphScreenState extends State<GraphScreen> {
           };
         }
         
+        // Si el seguidor es el usuario actual, registrar si sigue a este usuario
+        if (followerId.toString() == _currentUserId && !isRecommended) {
+          // Si isRecommended es false, significa que ya está siguiendo a este usuario
+          followingStatus[followedId.toString()] = true;
+          debugPrint('[DEBUG] El usuario actual ($followerId) sigue a: $followedId');
+        }
+        
         // Crear nodos si no existen
         if (!nodes.containsKey(followerId)) {
           nodes[followerId] = Node.Id(followerId);
@@ -161,9 +171,10 @@ class _GraphScreenState extends State<GraphScreen> {
       }
     }
     
-    // Guardar datos de usuario en el estado
+    // Guardar datos en el estado
     setState(() {
       _userData = userData;
+      _followingStatus = followingStatus;
     });
   }
 
@@ -264,11 +275,19 @@ class _GraphScreenState extends State<GraphScreen> {
     return GestureDetector(
       onTap: () {
         // Si no es el usuario actual, navegar al perfil no afiliado
-        if (!isCurrentUser && nodeId.isNotEmpty) {
-          debugPrint('[DEBUG] Navegando al perfil no afiliado con ID: $nodeId');
-          // Usar NavigationProvider para gestionar la navegación
+        if (!isCurrentUser && nodeId.isNotEmpty) {          // Determinar si el usuario actual sigue al usuario del perfil
+          final bool isFollowing = _followingStatus[nodeId] ?? false;
+          
+          debugPrint('[DEBUG] Navegando al perfil no afiliado con ID: $nodeId (seguido: $isFollowing)');
+          
+          // Usar NavigationProvider para gestionar la navegación con información adicional
           final navigationProvider = Provider.of<NavigationProvider>(context, listen: false);
-          navigationProvider.navigateToUserProfile(context, nodeId);
+          navigationProvider.navigateToUserProfile(
+            context, 
+            nodeId,
+            imageUrl: imageUrl,
+            isFollowing: isFollowing,
+          );
         } else if (isCurrentUser) {
           // Si es el usuario actual, no hacemos nada o mostramos un tooltip/snackbar
           ScaffoldMessenger.of(context).showSnackBar(
@@ -286,7 +305,7 @@ class _GraphScreenState extends State<GraphScreen> {
         shape: BoxShape.circle,
         border: Border.all(
           color: CorporativeColors.mainColor,
-          width: 3.0, // Borde más grueso
+          width: 5.0, // Borde más grueso
         ),
       ),
       child: ClipOval(

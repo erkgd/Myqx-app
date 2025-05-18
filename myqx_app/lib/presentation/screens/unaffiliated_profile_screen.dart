@@ -14,11 +14,13 @@ import 'package:myqx_app/presentation/widgets/general/music_container.dart';
 class UnaffiliatedProfileScreen extends StatefulWidget {
   final String userId;
   final String? profileImageUrl; // Añadido para recibir la URL de la imagen de perfil
+  final bool initialIsFollowing; // Estado inicial para saber si ya se sigue al usuario
 
   const UnaffiliatedProfileScreen({
     super.key,
     required this.userId,
     this.profileImageUrl, // Parámetro opcional para la URL de la imagen
+    this.initialIsFollowing = false, // Por defecto, no se sigue al usuario
   });
 
   @override
@@ -28,12 +30,14 @@ class UnaffiliatedProfileScreen extends StatefulWidget {
 class _UnaffiliatedProfileScreenState extends State<UnaffiliatedProfileScreen> with WidgetsBindingObserver {
   bool _isFollowing = false;
   bool _isLoading = true;
-  bool _isFollowStatusLoaded = false; // Nueva variable para controlar si el estado de seguimiento se ha cargado
   late final UnaffiliatedProfileService _profileService;
   final SecureStorage _secureStorage = SecureStorage();
-    @override
+  @override
   void initState() {
     super.initState();
+    
+    // Inicializar el estado de seguimiento con el valor proporcionado
+    _isFollowing = widget.initialIsFollowing;
     
     // Inicializar el servicio y configurar listeners
     _profileService = UnaffiliatedProfileService();
@@ -50,7 +54,6 @@ class _UnaffiliatedProfileScreenState extends State<UnaffiliatedProfileScreen> w
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
-  
   /// Carga todos los datos del perfil de forma optimizada
   Future<void> _loadProfile() async {
     if (!mounted) return;
@@ -61,8 +64,12 @@ class _UnaffiliatedProfileScreenState extends State<UnaffiliatedProfileScreen> w
       final isAuthenticated = await _secureStorage.isAuthenticated();
       await _profileService.loadProfileById(widget.userId);
       
-      // Cargar estado de seguimiento si está autenticado
-      if (isAuthenticated) {
+      // Si hay estado inicial de seguimiento (por ejemplo, desde GraphScreen), 
+      // saltamos la verificación API y usamos el valor proporcionado
+      if (isAuthenticated && widget.initialIsFollowing) {
+        debugPrint("[DEBUG] Usando estado de seguimiento precargado: ${widget.initialIsFollowing}");
+      } else if (isAuthenticated) {
+        // Solo si es necesario, verificamos el estado con la API
         await _loadFollowingStatus();
       }
     } catch (e) {
@@ -77,9 +84,6 @@ class _UnaffiliatedProfileScreenState extends State<UnaffiliatedProfileScreen> w
       
       // No se puede seguir a uno mismo
       if (currentUserId == widget.userId) {
-        if (mounted) {
-          setState(() => _isFollowStatusLoaded = true); // Marcar como cargado incluso si es uno mismo
-        }
         return;
       }
       
@@ -92,19 +96,19 @@ class _UnaffiliatedProfileScreenState extends State<UnaffiliatedProfileScreen> w
       if (mounted) {
         setState(() {
           _isFollowing = isFollowing;
-          _isFollowStatusLoaded = true; // Marcar que el estado de seguimiento se ha cargado
         });
         debugPrint("[DEBUG] Estado de seguimiento actualizado: ${_isFollowing ? 'Following' : 'Not following'}");
       }
     } catch (e) {
       debugPrint("[ERROR] Error al verificar estado de seguimiento: $e");
-      if (mounted) {
-        setState(() => _isFollowStatusLoaded = true); // Marcar como cargado incluso en caso de error
-      }
     }
   }
-  
   // Método para recargar solo el estado de seguimiento (puede ser llamado después de un cambio)
+  // Este método se mantiene para casos donde necesitamos actualizar manualmente el estado,
+  // como cuando venimos de una notificación o navegación directa sin pasar por GraphScreen
+  // NOTA: Actualmente no se usa porque el estado se pasa entre pantallas, pero se mantiene
+  // para posibles usos futuros o rutas de navegación alternativas.
+  // ignore: unused_element
   Future<void> _refreshFollowingStatus() async {
     try {
       final isFollowing = await _profileService.isFollowing(widget.userId);
@@ -321,21 +325,12 @@ class _UnaffiliatedProfileScreenState extends State<UnaffiliatedProfileScreen> w
                   ),
                 ),
                 
-                const SizedBox(width: 16),
-                
-                // Debug para verificar valores nulos
+                const SizedBox(width: 16),                // Debug para verificar valores
                 Builder(builder: (context) {
-                  debugPrint("[DEBUG] FollowButton params - userId: ${user.id}, displayName: ${user.displayName}, isFollowing: $_isFollowing, profileService: ${_profileService != null ? 'not null' : 'null'}");
+                  debugPrint("[DEBUG] FollowButton params - userId: ${user.id}, displayName: ${user.displayName}, isFollowing: $_isFollowing");
                   
-                  // Follow button
-                  if (user.id.isNotEmpty && _profileService != null) {
-                    return FollowButton(
-                      userId: user.id,
-                      displayName: user.displayName,
-                      isFollowing: _isFollowing,
-                      profileService: _profileService,
-                    );
-                  } else {
+                  // Follow button - simplificado para eliminar comprobaciones innecesarias
+                  if (user.id.isEmpty) {
                     // Botón de seguimiento fallback si hay datos faltantes
                     return ElevatedButton(
                       onPressed: null,
@@ -349,6 +344,13 @@ class _UnaffiliatedProfileScreenState extends State<UnaffiliatedProfileScreen> w
                       child: const Text('Unavailable', style: TextStyle(fontSize: 12)),
                     );
                   }
+                  
+                  return FollowButton(
+                    userId: user.id,
+                    displayName: user.displayName,
+                    isFollowing: _isFollowing, // Ya está inicializado con widget.initialIsFollowing o actualizado con la API si fue necesario
+                    profileService: _profileService,
+                  );
                 }),
               ],
             ),

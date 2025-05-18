@@ -84,22 +84,27 @@ class NavigationProvider with ChangeNotifier {
   
   // PROPIEDADES Y MÉTODOS PARA PERFIL NO AFILIADO
   // =============================================
-  
-  // ID del usuario cuyo perfil se está visualizando
+    // ID del usuario cuyo perfil se está visualizando
   String? currentProfileUserId;
-    // Método para navegar al perfil de un usuario no afiliado
-  void navigateToUserProfile(BuildContext context, String userId) {
+  // Información adicional del perfil
+  String? profileImageUrl;
+  bool isFollowing = false;
+  
+  // Método para navegar al perfil de un usuario no afiliado
+  void navigateToUserProfile(BuildContext context, String userId, {String? imageUrl, bool isFollowing = false}) {
     // Validar el ID
     if (userId.isEmpty) {
       debugPrint('Error: navigateToUserProfile recibió un ID vacío');
       return;
     }
     
-    // Almacenar el ID del usuario
+    // Almacenar el ID y datos adicionales del usuario
     currentProfileUserId = userId;
+    profileImageUrl = imageUrl;
+    this.isFollowing = isFollowing;
     
     // Registrar la acción para debugging
-    debugPrint('Navegando al perfil de usuario con ID: $userId');
+    debugPrint('Navegando al perfil de usuario con ID: $userId (isFollowing: $isFollowing)');
     
     // Navegar al perfil usando el índice correcto (5 para unaffiliated-profile)
     setCurrentIndex(5);

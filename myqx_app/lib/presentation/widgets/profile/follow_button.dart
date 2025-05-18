@@ -23,36 +23,13 @@ class FollowButton extends StatefulWidget {
 
 class _FollowButtonState extends State<FollowButton> {
   late bool _isFollowing;
-  bool _isInitializing = true; // Estado para la carga inicial
 
   @override
   void initState() {
     super.initState();
+    // Confiar en el estado proporcionado por el widget padre
     _isFollowing = widget.isFollowing;
-    
-    // Verificar el estado inicial con el servidor
-    _verifyInitialFollowingStatus();
-  }
-  
-  /// Método para verificar el estado inicial de seguimiento
-  Future<void> _verifyInitialFollowingStatus() async {
-    try {
-      final serverStatus = await widget.profileService.isFollowing(widget.userId);
-      if (mounted) {
-        setState(() {
-          _isFollowing = serverStatus;
-          _isInitializing = false; // Ya tenemos respuesta del servidor
-        });
-        debugPrint("[DEBUG] Initial server follow status: $_isFollowing");
-      }
-    } catch (e) {
-      debugPrint("[ERROR] Error verificando estado inicial: $e");
-      if (mounted) {
-        setState(() {
-          _isInitializing = false; // Aunque falle, permitimos mostrar el botón
-        });
-      }
-    }
+    debugPrint("[DEBUG] FollowButton initialized with isFollowing: $_isFollowing");
   }
 
   @override
@@ -63,15 +40,14 @@ class _FollowButtonState extends State<FollowButton> {
         _isFollowing = widget.isFollowing;
       });
     }
-  }
-  @override
+  }  @override
   Widget build(BuildContext context) {
     return SizedBox(
       width: 90,
       height: 30,
       child: ElevatedButton(
-        // Solo deshabilitamos el botón durante la inicialización, no durante las operaciones (UI optimista)
-        onPressed: _isInitializing ? null : _toggleFollowStatus,
+        // Siempre permitir clics ya que ahora confiamos en el estado inicial
+        onPressed: _toggleFollowStatus,
         style: ElevatedButton.styleFrom(
           backgroundColor: _isFollowing ? Colors.black : CorporativeColors.whiteColor,
           foregroundColor: _isFollowing ? CorporativeColors.whiteColor : Colors.black,
@@ -85,28 +61,16 @@ class _FollowButtonState extends State<FollowButton> {
           padding: EdgeInsets.zero,
           minimumSize: Size.zero,
           tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-          // Color de fondo más claro durante la inicialización
-          disabledBackgroundColor: Colors.grey[800],
-          disabledForegroundColor: Colors.grey,
         ),
-        child: _isInitializing
-          ? const SizedBox(
-              height: 12,
-              width: 12,
-              child: CircularProgressIndicator(color: CorporativeColors.mainColor, strokeWidth: 2),
-            )
-          : Text(
-              _isFollowing ? 'Unfollow' : 'Follow',
-              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-            ),
+        child: Text(
+          _isFollowing ? 'Unfollow' : 'Follow',
+          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+        ),
       ),
     );
-  }
-  /// Alterna el estado de seguimiento del usuario
+  }  /// Alterna el estado de seguimiento del usuario
   Future<void> _toggleFollowStatus() async {
-    // No activamos estado de carga para implementar UI optimista
-    // (el botón responde inmediatamente sin mostrar indicador de carga)
-    
+    // Implementamos UI optimista (el botón responde inmediatamente)
     try {
       // Optimistic UI update - actualizamos la UI inmediatamente 
       bool previousState = _isFollowing;
@@ -117,7 +81,8 @@ class _FollowButtonState extends State<FollowButton> {
       });
       
       bool success;
-      if (previousState) {        // Dejar de seguir al usuario
+      if (previousState) {
+        // Dejar de seguir al usuario
         debugPrint("[DEBUG] Unfollowing user: ${widget.userId}");
         success = await widget.profileService.unfollowUser(widget.userId);
         debugPrint("[DEBUG] Unfollow operation result: $success");
@@ -139,7 +104,8 @@ class _FollowButtonState extends State<FollowButton> {
         } else {
           debugPrint("[DEBUG] Successfully unfollowed user: ${widget.displayName}");
         }
-      } else {        // Seguir al usuario
+      } else {
+        // Seguir al usuario
         debugPrint("[DEBUG] Following user: ${widget.userId}");
         success = await widget.profileService.followUser(widget.userId);
         debugPrint("[DEBUG] Follow operation result: $success");
@@ -162,8 +128,8 @@ class _FollowButtonState extends State<FollowButton> {
           debugPrint("[DEBUG] Successfully followed user: ${widget.displayName}");
         }
       }
-        // Solo verificamos el estado si la operación no tuvo éxito
-      // Si fue exitosa, confiamos en nuestro estado optimista
+      
+      // Solo verificamos el estado si la operación no tuvo éxito
       if (!success) { 
         // Hay una discrepancia, verificar con el servidor
         debugPrint("[DEBUG] Verificando estado real con el servidor tras operación fallida");
@@ -188,8 +154,7 @@ class _FollowButtonState extends State<FollowButton> {
             backgroundColor: Colors.red,
           ),
         );
-      }    } finally {
-      // No necesitamos finalizar ningún estado de carga ya que implementamos UI optimista
+      }
     }
   }
 }

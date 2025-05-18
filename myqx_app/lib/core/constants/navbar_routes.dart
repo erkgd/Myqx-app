@@ -73,8 +73,7 @@ class NavbarRoutes {
       );
     }
   }
-  
-  // Método auxiliar para construir UnaffiliatedProfileScreen
+    // Método auxiliar para construir UnaffiliatedProfileScreen
   static Widget _buildProfileScreen(NavigationProvider navProvider) {
     if (navProvider.currentProfileUserId == null || 
         navProvider.currentProfileUserId!.isEmpty) {
@@ -85,6 +84,10 @@ class NavbarRoutes {
       );
     }
     
-    return UnaffiliatedProfileScreen(userId: navProvider.currentProfileUserId!);
+    return UnaffiliatedProfileScreen(
+      userId: navProvider.currentProfileUserId!,
+      profileImageUrl: navProvider.profileImageUrl,
+      initialIsFollowing: navProvider.isFollowing, // Pasamos el estado de seguimiento
+    );
   }
 }
