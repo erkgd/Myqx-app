@@ -1,6 +1,6 @@
 # Myqx App
 
-Myqx is a social media application that connects users through their musical preferences and helps discover new music based on compatibility with other users.
+Myqx is a social media application that connects users through their musical preferences and helps discover new music based on social compatibility with other users.
 
 ## Project Structure
 
@@ -31,7 +31,7 @@ The project follows a three-layer architecture:
   - [Flux Entre Capes](/docs/diagrams/05_cross_layer_flow.puml) - Flow between architectural layers
   - [Components de Perfil](/docs/diagrams/06_profile_components.puml) - User profile specific components
   - [Components Funcionals](/docs/diagrams/07_functional_components.puml) - High-level functional components
-- [TFG Diagram Descriptions](/docs/DESCRIPCIO_DIAGRAMES_TFG.md) - Academic descriptions of diagrams for TFG (in Catalan)
+- [TFG Diagram Descriptions](/docs/DESCRIPCIO_DIAGRAMES_TFG.md) - Academic descriptions of diagrams for TFB (in Catalan)
 - [Architecture Details](/docs/ARCHITECTURE_DETAILS.md) - Detailed explanation of each component
 - [Diagram Generation Guide](/docs/GENERATE_DIAGRAM.md) - Instructions for generating diagram images
 - [Documentation Overview](/docs/README.md) - Overview of architectural documentation
